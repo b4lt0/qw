@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y \
     libgoogle-glog0v5 \
     libgflags2.2 \
     libdouble-conversion3 \
+    libboost-all-dev \
     libboost-context1.74.0 \
     libboost-filesystem1.74.0 \
     libevent-2.1-7 \
