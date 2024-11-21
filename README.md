@@ -1,37 +1,89 @@
-# qw
+# QW Project
 
-host:/# mkdir <Projects>
+## Project Overview
+This project sets up a Docker environment for running a Proxygen-based HTTP server and client with custom congestion control.
 
-host:/Projects# cd <Projects>
+## Setup and Installation
 
-host:/Projects# git clone https://github.com/b4lt0/qw.git
+### 1. Clone the Repository
+```bash
+mkdir Projects
+cd Projects
+git clone https://github.com/b4lt0/qw.git
+cd qw
+```
 
-host:/Projects# cd <qw>
+### 2. Build Docker Environment
+Ensure Docker Desktop is running, then build the Docker image:
+```bash
+sudo docker build -t qw-image .
+```
 
-Start the Docker engine (just open the Docker Desktop app)
+### 3. Run Docker Container
+```bash
+sudo docker run --name qw-container --net host --privileged -v ./:/<qw> -it qw-image
+```
 
-host:/Projects/qw# sudo docker build -t <qw-image<> .
+### 4. Inside Docker Container: Prepare Dependencies
 
-host:/Projects/qw# sudo docker run --name <qw-container> --net host --privileged -v ./:/<qw> -it <qw-image>
+#### Update System
+```bash
+apt-get update && apt-get upgrade
+```
 
-docker:/qw# apt-get update && apt-get upgrade
+#### Install Fast Float Library
+```bash
+git clone https://github.com/fastfloat/fast_float.git
+cd fastfloat
+mkdir build && cd build
+cmake ..
+sudo make install
+```
 
-docker:/qw# git clone https://github.com/fastfloat/fast_float.git
-docker:/qw# cd fastfloat
-docker:/qw/fastfloat# mkdir build && cd build
-docker:/qw/fastfloat/build# cmake ..
-docker:/qw/fastfloat/build# sudo make install
+#### Build Proxygen
+```bash
+cd /qw/proxygen/proxygen/
+./build.sh -j 2
+```
+On my machine it works using just 2 jobs.
 
-docker:/qw/fastfloat/build# cd /qw/proxygen/proxygen/
+#### Prepare Sample Server Content
+```bash
+echo "abcd" > /qw/server/index.txt
+```
 
-docker:/qw/proxygen/proxygen# ./build.sh -j <2>
+## Usage
 
-docker:/qw/proxygen/proxygen# echo "abcd" > /qw/server/index.txt
+### Start Server
+```bash
+./_build/proxygen/httpserver/hq \
+  --mode=server \
+  --host=0.0.0.0 \
+  --static_root=/qw/server/ \
+  -qlogger_path=/qw/server/logs/ \
+  -congestion=westwood
+```
 
-usage:
-docker:/qw/proxygen/proxygen# ./_build/proxygen/httpserver/hq --mode=server --host=<0.0.0.0> --static_root=/qw/server/ -qlogger_path=/qw/server/logs/ -congestion=westwood
-docker:/qw/proxygen/proxygen# ./_build/proxygen/httpserver/hq --mode=client --host=<0.0.0.0> --outdir=/qw/client --path="/index.txt" -qlogger_path=/qw/client/logs/
+### Start Client
+```bash
+./_build/proxygen/httpserver/hq \
+  --mode=client \
+  --host=0.0.0.0 \
+  --outdir=/qw/client \
+  --path="/index.txt" \
+  -qlogger_path=/qw/client/logs/
+```
 
+## Key Parameters Explained
+- `--mode`: Specifies whether to run as server or client
+- `--host`: Server address
+- `--static_root`: Directory serving static files
+- `--outdir`: Client download destination
+- `-qlogger_path`: Directory for logging
+- `-congestion`: Network congestion control algorithm
 
-
-
+## Troubleshooting
+- Ensure Docker is running before build
+- Check network permissions if experiencing connectivity issues
+- Verify all dependencies are correctly installed
+- Contact me
