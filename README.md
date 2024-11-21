@@ -21,7 +21,7 @@ sudo docker build -t qw-image .
 
 ### 3. Run Docker Container
 ```bash
-sudo docker run --name qw-container --net host --privileged -v ./:/<qw> -it qw-image
+sudo docker run --name qw-container --net host --privileged -v ./:/qw -it qw-image
 ```
 
 ### 4. Inside Docker Container: Prepare Dependencies
