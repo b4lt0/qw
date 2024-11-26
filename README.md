@@ -7,8 +7,6 @@ This project sets up a Docker environment for running a Proxygen-based HTTP serv
 
 ### 1. Clone the Repository
 ```bash
-mkdir Projects
-cd Projects
 git clone https://github.com/b4lt0/qw.git
 cd qw
 ```
@@ -34,7 +32,7 @@ apt-get update && apt-get upgrade
 #### Install Fast Float Library
 ```bash
 git clone https://github.com/fastfloat/fast_float.git
-cd fastfloat
+cd fast_float
 mkdir build && cd build
 cmake ..
 sudo make install
