@@ -373,17 +373,8 @@ function setup_mvfst() {
     git clone https://github.com/facebook/mvfst "$MVFST_DIR"
   else 
     echo -e "${COLOR_RED}[ INFO ] Not cloning mvfst repo ${COLOR_OFF}"
-    echo -e "${COLOR_RED}[ INFO ] Not cloning mvfst repo ${COLOR_OFF}"
-    echo -e "${COLOR_RED}[ INFO ] Not cloning mvfst repo ${COLOR_OFF}"
-    echo -e "${COLOR_RED}[ INFO ] Not cloning mvfst repo ${COLOR_OFF}"
-    echo -e "${COLOR_RED}[ INFO ] Not cloning mvfst repo ${COLOR_OFF}"
-    echo -e "${COLOR_RED}[ INFO ] Not cloning mvfst repo ${COLOR_OFF}"
-    echo -e "${COLOR_RED}[ INFO ] Not cloning mvfst repo ${COLOR_OFF}"
-    echo -e "${COLOR_RED}[ INFO ] Not cloning mvfst repo ${COLOR_OFF}"
-    echo -e "${COLOR_RED}[ INFO ] Not cloning mvfst repo ${COLOR_OFF}"
-    echo -e "${COLOR_RED}[ INFO ] Not cloning mvfst repo ${COLOR_OFF}"
   fi
-  synch_dependency_to_commit "$MVFST_DIR" "$BASE_DIR"/../build/deps/github_hashes/facebook/mvfst-rev.txt
+  #synch_dependency_to_commit "$MVFST_DIR" "$BASE_DIR"/../build/deps/github_hashes/facebook/mvfst-rev.txt
   echo -e "${COLOR_GREEN}Building Mvfst ${COLOR_OFF}"
   mkdir -p "$MVFST_BUILD_DIR"
   cd "$MVFST_BUILD_DIR" || exit
@@ -416,7 +407,7 @@ INSTALL_DEPENDENCIES=true
 FETCH_DEPENDENCIES=true
 PREFIX=""
 COMPILER_FLAGS=""
-USAGE="./build.sh [-j num_jobs] [-m|--no-jemalloc] [--no-install-dependencies] [-p|--prefix] [-x|--compiler-flags] [--no-fetch-dependencies]"
+USAGE="./build.sh [-j num_jobs] [-t|--no-tests] [-m|--no-jemalloc] [--no-install-dependencies] [-p|--prefix] [-x|--compiler-flags] [--no-fetch-dependencies]"
 while [ "$1" != "" ]; do
   case $1 in
     -j | --jobs ) shift
