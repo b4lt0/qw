@@ -327,9 +327,7 @@ namespace quic {
     }
 
     // placeholders for application-limited behavior, which is not implòemented
-    void Westwood::setAppIdle(bool, TimePoint){}
-
-    noexcept { /* unsupported */ }
+    void Westwood::setAppIdle(bool, TimePoint) noexcept { /* unsupported */ }
 
     void Westwood::setAppLimited() { /* unsupported */ }
 
