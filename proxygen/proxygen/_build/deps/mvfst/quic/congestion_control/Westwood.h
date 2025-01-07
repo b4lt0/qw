@@ -9,24 +9,22 @@
 namespace quic {
 
 class WestwoodRttSampler {
-public:
-    explicit WestwoodRttSampler(std::chrono::seconds expiration)
-        : expiration_(expiration),
-          rttExpired_(true),
-          minRtt_(std::chrono::microseconds::max()) {}
+ public:
+  explicit WestwoodRttSampler(std::chrono::seconds expiration);
 
-    std::chrono::microseconds minRtt() const noexcept { return minRtt_; }
-    bool minRttExpired() const noexcept { return rttExpired_; }
-    bool newRttSample(std::chrono::microseconds rttSample,
-                      std::chrono::steady_clock::time_point sampledTime) noexcept;
-    void resetRttSample(std::chrono::steady_clock::time_point sampledTime) noexcept;
+  std::chrono::microseconds minRtt() const noexcept;
+  bool minRttExpired() const noexcept;
+  bool newRttSample(std::chrono::microseconds rttSample,
+                    std::chrono::steady_clock::time_point sampledTime) noexcept;
+  void resetRttSample(std::chrono::steady_clock::time_point sampledTime) noexcept;
 
-private:
-    std::chrono::seconds expiration_;
-    std::chrono::microseconds minRtt_;
-    std::optional<std::chrono::steady_clock::time_point> minRttTimestamp_;
-    bool rttExpired_;
+ private:
+  std::chrono::seconds expiration_;
+  std::chrono::microseconds minRtt_;
+  std::optional<std::chrono::steady_clock::time_point> minRttTimestamp_;
+  bool rttExpired_;
 };
+
 
 class Westwood : public CongestionController {
 public:
@@ -63,17 +61,17 @@ private:
   void onPacketLoss(const LossEvent&);
   void onAckEvent(const AckEvent&);
   void onPacketAcked(const CongestionController::AckEvent::AckPacket&);
-  void westwoodFilter(uint32_t delta);
-  uint32_t westwood_do_filter(uint32_t a, uint32_t b);
+  void updateWestwoodBandwidthEstimates(uint32_t delta);
+  uint32_t westwoodLowPassFilter(uint32_t a, uint32_t b);
   // void updateRTTMin(TimePoint time);
 
 private:
-  QuicConnectionStateBase& conn_;
-  std::chrono::steady_clock::time_point rtt_win_sx_;
-  std::chrono::microseconds lastRtt_;
-  uint32_t bw_ns_est_;
-  uint32_t bw_est_;
-  uint64_t bytes_acknowledged_; 
+  QuicConnectionStateBase& quicConnectionState_;
+  std::chrono::steady_clock::time_point rttWindowStartTime_;
+  std::chrono::microseconds latestRttSample_;
+  uint32_t bandwidthNewestEstimate_;
+  uint32_t bandwidthEstimate_;
+  uint64_t bytesAckedInCurrentInterval_; 
   uint64_t ssthresh_;
   uint64_t cwndBytes_;
   WestwoodRttSampler rttSampler_; 

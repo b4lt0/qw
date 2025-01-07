@@ -14,53 +14,44 @@
 
 namespace quic {
 
-class WestwoodRttSampler {
- public:
-  explicit WestwoodRttSampler(std::chrono::seconds expiration)
-      : expiration_(expiration),
-       rttExpired_(true),
-        minRtt_(std::chrono::microseconds::max()) {}
+    WestwoodRttSampler::WestwoodRttSampler(std::chrono::seconds expiration)
+        : expiration_(expiration),
+        minRtt_(std::chrono::microseconds::max()),
+        rttExpired_(true) {}
 
-  // get the minimum RTT value
-  std::chrono::microseconds minRtt() const noexcept {
+    std::chrono::microseconds WestwoodRttSampler::minRtt() const noexcept {
     return minRtt_;
-  }
+    }
 
-  // check if the minimum RTT sample has expired
-  bool minRttExpired() const noexcept {
+    bool WestwoodRttSampler::minRttExpired() const noexcept {
     return rttExpired_;
-  }
+    }
 
-  // update RTT sample; return true if the sample was updated
-  bool newRttSample(std::chrono::microseconds rttSample,
-                     std::chrono::steady_clock::time_point sampledTime) noexcept {
-    // determine if the previous minRtt is expired by comparing 
+    bool WestwoodRttSampler::newRttSample(
+        std::chrono::microseconds rttSample,
+        std::chrono::steady_clock::time_point sampledTime) noexcept {
+
+    // Determine if previous minRtt is expired by comparing
     // the current sample time with stored timestamp + expiration
-    rttExpired_ = minRttTimestamp_.has_value() 
-        ? sampledTime > *minRttTimestamp_ + expiration_ 
+    rttExpired_ = minRttTimestamp_.has_value()
+        ? (sampledTime > *minRttTimestamp_ + expiration_)
         : false;
-    // update minRtt_ if expired or if we found a smaller RTT
+
+    // Update minRtt_ if expired or if we found a smaller RTT
     if (rttExpired_ || rttSample < minRtt_) {
-      minRtt_ = rttSample;
-      minRttTimestamp_ = sampledTime;
-      return true;
+        minRtt_ = rttSample;
+        minRttTimestamp_ = sampledTime;
+        return true;
     }
     return false;
-  }
+    }
 
-  // reset the RTT sample with the current timestamp
-  void resetRttSample(std::chrono::steady_clock::time_point sampledTime) noexcept {
+    void WestwoodRttSampler::resetRttSample(
+        std::chrono::steady_clock::time_point sampledTime) noexcept {
     minRtt_ = std::chrono::microseconds::max();
     minRttTimestamp_ = sampledTime;
     rttExpired_ = true;
-  }
-
- private:
-  std::chrono::seconds expiration_;
-  std::chrono::microseconds minRtt_;
-  std::optional<std::chrono::steady_clock::time_point> minRttTimestamp_;
-  bool rttExpired_;
-};
+    }
 
 
     constexpr uint64_t kWestwoodMinRttMicroseconds = 50000; // minimum RTT threshold in microseconds
