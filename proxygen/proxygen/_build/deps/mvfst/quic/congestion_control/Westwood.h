@@ -45,24 +45,28 @@ private:
   void onPacketAcked(const CongestionController::AckEvent::AckPacket&);
   void westwoodFilter(uint32_t delta);
   uint32_t westwood_do_filter(uint32_t a, uint32_t b);
-  void updateRTTMin(TimePoint time);
+  // void updateRTTMin(TimePoint time);
 
 private:
   QuicConnectionStateBase& conn_;
+  std::chrono::steady_clock::time_point rtt_win_sx_;
+  std::chrono::microseconds lastRtt_;
   uint32_t bw_ns_est_;
   uint32_t bw_est_;
-  TimePoint rtt_win_sx_;
-  uint32_t bk_;
-  uint64_t snd_una_;
-  uint32_t cumul_ack_;
-  uint32_t accounted_;
-  uint64_t rtt_;
-  uint64_t rtt_min_;
-  bool first_ack_;
-  bool reset_rtt_min_;
+  uint64_t bytes_acknowledged_; 
   uint64_t ssthresh_;
   uint64_t cwndBytes_;
+  WestwoodRttSampler rttSampler_; 
   folly::Optional<TimePoint> endOfRecovery_;
+
+  // TimePoint rtt_win_sx_;
+  // uint64_t snd_una_;
+  // uint32_t cumul_ack_;
+  // uint32_t accounted_;
+  // uint64_t rtt_;
+  // uint64_t rtt_min_;
+  // bool first_ack_;
+  // bool reset_rtt_min_;
 };
 
 } // namespace quic
