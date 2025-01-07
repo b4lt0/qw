@@ -298,7 +298,6 @@ namespace quic {
             // TODO: if inflightBytes is somehow larger than cwndBytes, this could cause an underflow.
             return cwndBytes_ - quicConnectionState_.lossState.inflightBytes; // remaining space in cwnd
             }
-        }
     }
 
     // returns the current congestion window size
@@ -328,7 +327,7 @@ namespace quic {
     }
 
     // placeholders for application-limited behavior, which is not implòemented
-    void Westwood::setAppIdle(bool, TimePoint)
+    void Westwood::setAppIdle(bool, TimePoint){}
 
     noexcept { /* unsupported */ }
 
