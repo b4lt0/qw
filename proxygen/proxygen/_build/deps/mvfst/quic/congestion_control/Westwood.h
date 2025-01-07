@@ -8,6 +8,26 @@
 
 namespace quic {
 
+class WestwoodRttSampler {
+public:
+    explicit WestwoodRttSampler(std::chrono::seconds expiration)
+        : expiration_(expiration),
+          rttExpired_(true),
+          minRtt_(std::chrono::microseconds::max()) {}
+
+    std::chrono::microseconds minRtt() const noexcept { return minRtt_; }
+    bool minRttExpired() const noexcept { return rttExpired_; }
+    bool newRttSample(std::chrono::microseconds rttSample,
+                      std::chrono::steady_clock::time_point sampledTime) noexcept;
+    void resetRttSample(std::chrono::steady_clock::time_point sampledTime) noexcept;
+
+private:
+    std::chrono::seconds expiration_;
+    std::chrono::microseconds minRtt_;
+    std::optional<std::chrono::steady_clock::time_point> minRttTimestamp_;
+    bool rttExpired_;
+};
+
 class Westwood : public CongestionController {
 public:
   explicit Westwood(QuicConnectionStateBase& conn);
