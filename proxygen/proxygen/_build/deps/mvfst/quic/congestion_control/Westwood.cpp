@@ -60,7 +60,7 @@ namespace quic {
 
     Westwood::Westwood(QuicConnectionStateBase &conn)
             :   quicConnectionState_(conn), // reference to the QUIC connection state
-                rttWindowStartTime_ = Clock::now(), // start RTT measurement interval now
+                rttWindowStartTime_(Clock::now()), // start RTT measurement interval now
                 latestRttSample_(std::chrono::microseconds(kWestwoodInitialRttMicroseconds)), // set initial last RTT
                 bandwidthNewestEstimate_(0), // bandwidth newest estimate
                 bandwidthEstimate_(0), // smoothed bandwidth estimate
@@ -73,8 +73,9 @@ namespace quic {
                     quicConnectionState_.udpSendPacketLen,
                     quicConnectionState_.transportSettings.maxCwndInMss,
                     quicConnectionState_.transportSettings.minCwndInMss);
-                } 
+                }
               
+
 
     // called when bytes are removed from inflight (unacknowledged) data
     void Westwood::onRemoveBytesFromInflight(uint64_t bytes) {
