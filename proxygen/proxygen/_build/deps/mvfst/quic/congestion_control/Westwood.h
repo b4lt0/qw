@@ -14,6 +14,7 @@ class WestwoodRttSampler {
 
   std::chrono::microseconds minRtt() const noexcept;
   bool minRttExpired() const noexcept;
+
   bool newRttSample(std::chrono::microseconds rttSample,
                     std::chrono::steady_clock::time_point sampledTime) noexcept;
   void resetRttSample(std::chrono::steady_clock::time_point sampledTime) noexcept;
@@ -63,6 +64,7 @@ private:
   void onPacketAcked(const CongestionController::AckEvent::AckPacket&);
   void updateWestwoodBandwidthEstimates(uint32_t delta);
   uint32_t westwoodLowPassFilter(uint32_t a, uint32_t b);
+  
   // void updateRTTMin(TimePoint time);
 
 private:
@@ -73,8 +75,8 @@ private:
   uint32_t bandwidthEstimate_;
   uint64_t bytesAckedInCurrentInterval_; 
   uint64_t ssthresh_;
-  uint64_t cwndBytes_;
   WestwoodRttSampler rttSampler_; 
+  uint64_t cwndBytes_;
   folly::Optional<TimePoint> endOfRecovery_;
 
   // TimePoint rtt_win_sx_;

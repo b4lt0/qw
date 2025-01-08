@@ -68,7 +68,7 @@ namespace quic {
                 ssthresh_(std::numeric_limits<uint64_t>::max()), // slow start threshold at max
                 rttSampler_(std::chrono::seconds(kWestwoodRttExpirationSeconds)),
                 cwndBytes_(conn.transportSettings.initCwndInMss * conn.udpSendPacketLen) {
-                cwndBytes_ = boundCongestionWindowSize( // congestion window (properly bounded
+                cwndBytes_ = boundedCwnd( // congestion window (properly bounded
                     cwndBytes_,
                     quicConnectionState_.udpSendPacketLen,
                     quicConnectionState_.transportSettings.maxCwndInMss,
@@ -144,7 +144,7 @@ namespace quic {
             onPacketAcked(packet);
         }
         // set the new cwnd based on what came out of the packet processing
-        cwndBytes_ = boundCongestionWindowSize(
+        cwndBytes_ = boundedCwnd(
                 cwndBytes_,
                 quicConnectionState_.udpSendPacketLen,
                 quicConnectionState_.transportSettings.maxCwndInMss,
