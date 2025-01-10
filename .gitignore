@@ -50,3 +50,5 @@ gen-cpp2
 # Generated document
 html/
 latex/
+
+*.DS_Store
