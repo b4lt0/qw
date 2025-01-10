@@ -62,7 +62,7 @@ def plot_metrics():
             ssthresh_values.append(None)
             bytes_in_flight_values.append(None)
 
-        elif event_type == 'ack_received':
+        elif event_type == 'packet_received':
             acked_ranges = event_data['acked_ranges']
             # Calculate the total size of acknowledged data
             acked_data_size = sum(end - start + 1 for start, end in acked_ranges)
@@ -86,9 +86,9 @@ def plot_metrics():
             ssthresh_values.append(None)
             bytes_in_flight_values.append(None)
 
-        elif event_type == 'metrics_updated':
-            cwnd = event_data.get('cwnd')
-            ssthresh = event_data.get('ssthresh')
+        elif event_type == 'metric_update':
+            cwnd = event_data.get('current_cwnd')
+            # ssthresh = event_data.get('ssthresh')
             bytes_in_flight = event_data.get('bytes_in_flight')
             times.append(event_time)
             data_sent.append(cumulative_data_sent)
