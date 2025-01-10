@@ -64,6 +64,9 @@ def plot_metrics(qlog_data):
             cwnd = event_data.get('current_cwnd')
             bytes_in_flight = event_data.get('bytes_in_flight')
 
+            print(f"Time: {event_time}, CWND: {cwnd}, Bytes in Flight: {bytes_in_flight}")
+
+
             # Add values to lists
             times.append(event_time)
             data_sent.append(cumulative_data_sent)
