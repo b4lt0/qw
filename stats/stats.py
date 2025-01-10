@@ -21,9 +21,9 @@ with open(qlog_path, 'r') as file:
     qlog_data = json.load(file)
 
 if args.mode == 'rtt':
-        plot_rtt(args.qlog_path)
+    plot_rtt()
 elif args.mode == 'metrics':
-        plot_metrics(args.qlog_path)
+    plot_metrics()
 
 def plot_rtt():
     times = []
