@@ -8,11 +8,13 @@ parser.add_argument('qlog_path', type=str, help='Path to the qlog file')
 
 args = parser.parse_args() 
 
+qlog_path=args.qlog_path
+
 if not os.path.isfile(qlog_path):
     print(f'Error: The file {qlog_path} does not exist.')
     exit(1)
 
-with open(args.qlog_path, 'r') as file:
+with open(qlog_path, 'r') as file:
     qlog_data = json.load(file)
 
 times = []
