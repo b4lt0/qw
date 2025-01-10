@@ -5,7 +5,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-def plot_rtt():
+def plot_rtt(qlog_data):
     times = []
     latest_rtts = []
     min_rtts = []
@@ -118,7 +118,7 @@ with open(qlog_path, 'r') as file:
     qlog_data = json.load(file)
 
 if args.mode == 'rtt':
-    plot_rtt()
+    plot_rtt(qlog_data)
 elif args.mode == 'metrics':
-    plot_metrics()
+    plot_metrics(qlog_data)
 
