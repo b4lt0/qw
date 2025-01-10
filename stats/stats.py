@@ -22,7 +22,7 @@ with open(qlog_path, 'r') as file:
 
 if args.mode == 'rtt':
         plot_rtt(args.qlog_path)
-    elif args.mode == 'metrics':
+elif args.mode == 'metrics':
         plot_metrics(args.qlog_path)
 
 def plot_rtt()
