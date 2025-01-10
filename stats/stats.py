@@ -25,7 +25,7 @@ if args.mode == 'rtt':
 elif args.mode == 'metrics':
         plot_metrics(args.qlog_path)
 
-def plot_rtt()
+def plot_rtt():
     times = []
     latest_rtts = []
     min_rtts = []
@@ -53,7 +53,7 @@ def plot_rtt()
     plt.grid(True)
     plt.show()
 
-def plot_metrics()
+def plot_metrics():
     times = []
     data_sent = []
     data_acknowledged = []
