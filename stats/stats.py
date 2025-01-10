@@ -5,26 +5,6 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-parser = argparse.ArgumentParser(description='Process a qlog file.')
-parser.add_argument('qlog_path', type=str, help='Path to the qlog file')
-parser.add_argument('mode', type=str, help='rtt or cogestion metrics')
-
-args = parser.parse_args() 
-
-qlog_path=args.qlog_path
-
-if not os.path.isfile(qlog_path):
-    print(f'Error: The file {qlog_path} does not exist.')
-    exit(1)
-
-with open(qlog_path, 'r') as file:
-    qlog_data = json.load(file)
-
-if args.mode == 'rtt':
-    plot_rtt()
-elif args.mode == 'metrics':
-    plot_metrics()
-
 def plot_rtt():
     times = []
     latest_rtts = []
@@ -160,4 +140,24 @@ def plot_metrics():
 
     plt.tight_layout()
     plt.show()
+
+parser = argparse.ArgumentParser(description='Process a qlog file.')
+parser.add_argument('qlog_path', type=str, help='Path to the qlog file')
+parser.add_argument('mode', type=str, help='rtt or cogestion metrics')
+
+args = parser.parse_args() 
+
+qlog_path=args.qlog_path
+
+if not os.path.isfile(qlog_path):
+    print(f'Error: The file {qlog_path} does not exist.')
+    exit(1)
+
+with open(qlog_path, 'r') as file:
+    qlog_data = json.load(file)
+
+if args.mode == 'rtt':
+    plot_rtt()
+elif args.mode == 'metrics':
+    plot_metrics()
 
