@@ -67,6 +67,10 @@ def plot_metrics(qlog_data):
             cwnd = event_data.get('current_cwnd')
             bytes_in_flight = event_data.get('bytes_in_flight')
 
+            if cwnd is None or bytes_in_flight is None:
+                #print(f"Skipping event at time {event_time} due to missing values.")
+                continue
+
             # Debugging
             print(f"Time: {event_time}, CWND: {cwnd}, Bytes in Flight: {bytes_in_flight}")
 
