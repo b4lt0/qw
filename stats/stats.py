@@ -50,24 +50,24 @@ def plot_metrics(qlog_data):
         event_type = event[2]
         event_data = event[3]
 
+        # Handle packet-related events
         if event_type == 'packet_sent':
-            packet_size = event_data['header'].get('packet_size', 0)  # Default to 0 if missing
+            packet_size = event_data['header'].get('packet_size', 0)
             cumulative_data_sent += packet_size
         elif event_type == 'packet_received':
-            acked_ranges = event_data.get('acked_ranges', [])  # Default to an empty list
+            acked_ranges = event_data.get('acked_ranges', [])
             acked_data_size = sum(end - start + 1 for start, end in acked_ranges)
             cumulative_data_acknowledged += acked_data_size
         elif event_type == 'packet_lost':
-            lost_packet_size = event_data.get('header', {}).get('packet_size', 0)  # Safely handle missing keys
+            lost_packet_size = event_data.get('header', {}).get('packet_size', 0)
             cumulative_data_lost += lost_packet_size
-        elif event_type == 'metric_update':
+
+        # Handle metric updates
+        if event_type == 'metric_update':
             cwnd = event_data.get('current_cwnd')
             bytes_in_flight = event_data.get('bytes_in_flight')
 
-            print(f"Time: {event_time}, CWND: {cwnd}, Bytes in Flight: {bytes_in_flight}")
-
-
-            # Add values to lists
+            # Only append if metric_update is present
             times.append(event_time)
             data_sent.append(cumulative_data_sent)
             data_acknowledged.append(cumulative_data_acknowledged)
@@ -75,13 +75,18 @@ def plot_metrics(qlog_data):
             cwnd_values.append(cwnd)
             bytes_in_flight_values.append(bytes_in_flight)
 
-    # Ensure lists are not empty before plotting
+            print(f"Time: {event_time}, CWND: {cwnd}, Bytes in Flight: {bytes_in_flight}")
+
+
+    # Check if data is available for plotting
     if not times:
         print("No valid data to plot.")
         return
 
     # Plot Data
     plt.figure(figsize=(12, 8))
+
+    # Data Transfer Metrics
     plt.subplot(2, 1, 1)
     plt.plot(times, data_sent, label='Data Sent (bytes)', color='blue')
     plt.plot(times, data_acknowledged, label='Data Acknowledged (bytes)', color='green')
@@ -92,9 +97,17 @@ def plot_metrics(qlog_data):
     plt.legend()
     plt.grid(True)
 
+    # Congestion Metrics
     plt.subplot(2, 1, 2)
-    plt.plot(times, cwnd_values, label='Congestion Window (cwnd)', color='purple')
-    plt.plot(times, bytes_in_flight_values, label='Bytes in Flight', color='brown')
+    if any(cwnd_values):
+        plt.plot(times, cwnd_values, label='Congestion Window (cwnd)', color='purple', marker='o')
+    else:
+        print("No valid cwnd data to plot.")
+    if any(bytes_in_flight_values):
+        plt.plot(times, bytes_in_flight_values, label='Bytes in Flight', color='brown', marker='x')
+    else:
+        print("No valid bytes_in_flight data to plot.")
+
     plt.xlabel('Time (ms)')
     plt.ylabel('Bytes')
     plt.title('Congestion Control Metrics Over Time')
