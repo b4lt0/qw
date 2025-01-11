@@ -62,21 +62,21 @@ def plot_metrics(qlog_data):
             lost_packet_size = event_data.get('header', {}).get('packet_size', 0)
             cumulative_data_lost += lost_packet_size
 
-        # Handle metric updates
-        if event_type == 'metric_update':
+        # Handle congestion metrics
+        if event_type in ['metric_update', 'congestion_metric_update']:
             cwnd = event_data.get('current_cwnd')
             bytes_in_flight = event_data.get('bytes_in_flight')
 
-            # Only append if metric_update is present
+            # Debugging
+            print(f"Time: {event_time}, CWND: {cwnd}, Bytes in Flight: {bytes_in_flight}")
+
+            # Append to lists
             times.append(event_time)
             data_sent.append(cumulative_data_sent)
             data_acknowledged.append(cumulative_data_acknowledged)
             data_lost.append(cumulative_data_lost)
-            cwnd_values.append(cwnd)
-            bytes_in_flight_values.append(bytes_in_flight)
-
-            print(f"Time: {event_time}, CWND: {cwnd}, Bytes in Flight: {bytes_in_flight}")
-
+            cwnd_values.append(cwnd if cwnd is not None else 0)
+            bytes_in_flight_values.append(bytes_in_flight if bytes_in_flight is not None else 0)
 
     # Check if data is available for plotting
     if not times:
@@ -116,6 +116,7 @@ def plot_metrics(qlog_data):
 
     plt.tight_layout()
     plt.show()
+
 
 
 parser = argparse.ArgumentParser(description='Process a qlog file.')
