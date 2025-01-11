@@ -33,7 +33,7 @@ def plot_rtt(qlog_data):
     plt.grid(True)
     plt.show()
 
-def plot_metrics(qlog_data):
+def plot_metrics(qlog_data, plot_bytes_in_flight=False):
     times = []
     data_sent = []
     data_acknowledged = []
@@ -80,7 +80,8 @@ def plot_metrics(qlog_data):
             data_acknowledged.append(cumulative_data_acknowledged)
             data_lost.append(cumulative_data_lost)
             cwnd_values.append(cwnd if cwnd is not None else 0)
-            bytes_in_flight_values.append(bytes_in_flight if bytes_in_flight is not None else 0)
+            if plot_bytes_in_flight:
+                bytes_in_flight_values.append(bytes_in_flight if bytes_in_flight is not None else 0)
 
     # Check if data is available for plotting
     if not times:
@@ -107,10 +108,12 @@ def plot_metrics(qlog_data):
         plt.plot(times, cwnd_values, label='Congestion Window (cwnd)', color='purple', marker='o')
     else:
         print("No valid cwnd data to plot.")
-    if any(bytes_in_flight_values):
-        plt.plot(times, bytes_in_flight_values, label='Bytes in Flight', color='brown', marker='x')
-    else:
-        print("No valid bytes_in_flight data to plot.")
+    if plot_bytes_in_flight:
+        if any(bytes_in_flight_values):
+            plt.plot(times, bytes_in_flight_values, label='Bytes in Flight', color='brown', marker='x')
+        else:
+            print("No valid bytes_in_flight data to plot.")
+
 
     plt.xlabel('Time (ms)')
     plt.ylabel('Bytes')
@@ -125,7 +128,10 @@ def plot_metrics(qlog_data):
 
 parser = argparse.ArgumentParser(description='Process a qlog file.')
 parser.add_argument('qlog_path', type=str, help='Path to the qlog file')
-parser.add_argument('mode', type=str, help='rtt or cogestion metrics')
+# parser.add_argument('mode', type=str, help='rtt or congestion metrics')
+parser.add_argument('--plot-bytes-in-flight', action='store_true', default=False, 
+                    help='Enable plotting of bytes in flight (default: disabled)')
+
 
 args = parser.parse_args() 
 
@@ -138,8 +144,5 @@ if not os.path.isfile(qlog_path):
 with open(qlog_path, 'r') as file:
     qlog_data = json.load(file)
 
-if args.mode == 'rtt':
-    plot_rtt(qlog_data)
-elif args.mode == 'metrics':
-    plot_metrics(qlog_data)
-
+plot_rtt(qlog_data)
+plot_metrics(qlog_data, plot_bytes_in_flight=args.plot_bytes_in_flight)
