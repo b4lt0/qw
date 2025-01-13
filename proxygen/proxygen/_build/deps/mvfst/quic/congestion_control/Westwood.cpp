@@ -222,8 +222,8 @@ namespace quic {
             // set sstresh based on estomated bandwidth and minimum rtt
             uint64_t rttMinUs = rttSampler_.minRtt().count(); // current min RTT
             ssthresh_ = std::max(
-                static_cast<uint64_t>((bandwidthEstimate_ * rttMinUs) / quicConnectionState_.udpSendPacketLen),
-                                 quicConnectionState_.udpSendPacketLen);
+                static_cast<uint64_t>((bandwidthEstimate_ * rttMinUs)),
+                                 2*quicConnectionState_.udpSendPacketLen);
             // set cwnd to current sstresh
             cwndBytes_ = ssthresh_;
             // LOG
