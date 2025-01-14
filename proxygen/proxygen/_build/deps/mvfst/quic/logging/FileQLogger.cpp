@@ -256,6 +256,7 @@ void FileQLogger::addTransportSummary(const TransportSummaryArgs& args) {
 void FileQLogger::addCongestionMetricUpdate(
     uint64_t bytesInFlight,
     uint64_t currentCwnd,
+    uint64_t sstresh,
     std::string congestionEvent,
     std::string state,
     std::string recoveryState) {
@@ -265,6 +266,7 @@ void FileQLogger::addCongestionMetricUpdate(
   handleEvent(std::make_unique<quic::QLogCongestionMetricUpdateEvent>(
       bytesInFlight,
       currentCwnd,
+      sstresh,
       std::move(congestionEvent),
       std::move(state),
       std::move(recoveryState),

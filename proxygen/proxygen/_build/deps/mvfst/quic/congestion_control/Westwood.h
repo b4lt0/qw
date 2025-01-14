@@ -44,6 +44,7 @@ public:
 
   uint64_t getWritableBytes() const noexcept override;
   uint64_t getCongestionWindow() const noexcept override;
+  uint64_t getSlowStartTreshold() const noexcept override;
   void setAppIdle(bool, TimePoint) noexcept override;
   void setAppLimited() override;
    void setBandwidthUtilizationFactor(
@@ -78,15 +79,6 @@ private:
   WestwoodRttSampler rttSampler_; 
   uint64_t cwndBytes_;
   folly::Optional<TimePoint> endOfRecovery_;
-
-  // TimePoint rtt_win_sx_;
-  // uint64_t snd_una_;
-  // uint32_t cumul_ack_;
-  // uint32_t accounted_;
-  // uint64_t rtt_;
-  // uint64_t rtt_min_;
-  // bool first_ack_;
-  // bool reset_rtt_min_;
 };
 
 } // namespace quic

@@ -90,6 +90,7 @@ namespace quic {
             quicConnectionState_.qLogger->addCongestionMetricUpdate(
                     quicConnectionState_.lossState.inflightBytes,
                     getCongestionWindow(),
+                    getSlowStartTreshold(),
                     kRemoveInflight);
         }
     }
@@ -109,6 +110,7 @@ namespace quic {
             quicConnectionState_.qLogger->addCongestionMetricUpdate(
                     quicConnectionState_.lossState.inflightBytes,
                     getCongestionWindow(),
+                    getSlowStartTreshold(),
                     kCongestionPacketSent);
         }
     }
@@ -241,6 +243,7 @@ namespace quic {
             quicConnectionState_.qLogger->addCongestionMetricUpdate(
                     quicConnectionState_.lossState.inflightBytes,
                     getCongestionWindow(),
+                    getSlowStartTreshold(),
                     kCongestionPacketLoss);
         }
         // if the congestion is persistent
@@ -252,6 +255,7 @@ namespace quic {
                 quicConnectionState_.qLogger->addCongestionMetricUpdate(
                         quicConnectionState_.lossState.inflightBytes,
                         getCongestionWindow(),
+                        getSlowStartTreshold(),
                         kPersistentCongestion);
             }
             // reset congestion window to minimum value
@@ -303,6 +307,11 @@ namespace quic {
     // returns the current congestion window size
     uint64_t Westwood::getCongestionWindow() const noexcept {
         return cwndBytes_;
+    }
+
+    // returns the current slow start treshold
+    uint64_t Westwood::getSlowStartTreshold() const noexcept {
+        return sstresh_;
     }
 
     // determines if the algorithm is currently in slow start phase
