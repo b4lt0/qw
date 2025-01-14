@@ -266,7 +266,7 @@ void FileQLogger::addCongestionMetricUpdate(
   handleEvent(std::make_unique<quic::QLogCongestionMetricUpdateEvent>(
       bytesInFlight,
       currentCwnd,
-      sstresh,
+      ssthresh,
       std::move(congestionEvent),
       std::move(state),
       std::move(recoveryState),

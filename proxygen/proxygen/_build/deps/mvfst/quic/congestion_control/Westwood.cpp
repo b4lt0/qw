@@ -90,7 +90,7 @@ namespace quic {
             quicConnectionState_.qLogger->addCongestionMetricUpdate(
                     quicConnectionState_.lossState.inflightBytes,
                     getCongestionWindow(),
-                    getSlowStartTreshold(),
+                    getSlowStartThreshold(),
                     kRemoveInflight);
         }
     }
@@ -110,7 +110,7 @@ namespace quic {
             quicConnectionState_.qLogger->addCongestionMetricUpdate(
                     quicConnectionState_.lossState.inflightBytes,
                     getCongestionWindow(),
-                    getSlowStartTreshold(),
+                    getSlowStartThreshold(),
                     kCongestionPacketSent);
         }
     }
@@ -138,7 +138,7 @@ namespace quic {
             quicConnectionState_.qLogger->addCongestionMetricUpdate(
                     quicConnectionState_.lossState.inflightBytes,
                     getCongestionWindow(),
-                    getSlowStartTreshold(),
+                    getSlowStartThreshold(),
                     kCongestionPacketAck);
         }
 
@@ -204,7 +204,7 @@ namespace quic {
         }
     }
 
-    // handles losses, calculates sstresh and adjusts cwnd
+    // handles losses, calculates ssthresh and adjusts cwnd
     void Westwood::onPacketLoss(const LossEvent &loss) {
         // ensure the loss event is valid
         DCHECK(
@@ -222,12 +222,12 @@ namespace quic {
         if (!endOfRecovery_ || *endOfRecovery_ < *loss.largestLostSentTime) {
             // start a new recovery period
             endOfRecovery_ = Clock::now(); // mark start of new recovery
-            // set sstresh based on estomated bandwidth and minimum rtt
+            // set ssthresh based on estomated bandwidth and minimum rtt
             uint64_t rttMinUs = rttSampler_.minRtt().count(); // current min RTT
             ssthresh_ = std::max(
                 static_cast<uint64_t>((bandwidthEstimate_ * rttMinUs)),
                                  2*quicConnectionState_.udpSendPacketLen);
-            // set cwnd to current sstresh
+            // set cwnd to current ssthresh
             cwndBytes_ = ssthresh_;
             // LOG
             VLOG(10) << __func__ << " exit slow start, ssthresh=" << ssthresh_
@@ -244,7 +244,7 @@ namespace quic {
             quicConnectionState_.qLogger->addCongestionMetricUpdate(
                     quicConnectionState_.lossState.inflightBytes,
                     getCongestionWindow(),
-                    getSlowStartTreshold(),
+                    getSlowStartThreshold(),
                     kCongestionPacketLoss);
         }
         // if the congestion is persistent
@@ -256,7 +256,7 @@ namespace quic {
                 quicConnectionState_.qLogger->addCongestionMetricUpdate(
                         quicConnectionState_.lossState.inflightBytes,
                         getCongestionWindow(),
-                        getSlowStartTreshold(),
+                        getSlowStartThreshold(),
                         kPersistentCongestion);
             }
             // reset congestion window to minimum value
@@ -317,9 +317,9 @@ namespace quic {
         return cwndBytes_;
     }
 
-    // returns the current slow start treshold
-    uint64_t Westwood::getSlowStartTreshold() const noexcept {
-        return sstresh_;
+    // returns the current slow start threshold
+    uint64_t Westwood::getSlowStartThreshold() const noexcept {
+        return ssthresh_;
     }
 
     // determines if the algorithm is currently in slow start phase

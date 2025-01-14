@@ -487,6 +487,7 @@ folly::dynamic QLogTransportSummaryEvent::toDynamic() const {
 QLogCongestionMetricUpdateEvent::QLogCongestionMetricUpdateEvent(
     uint64_t bytesInFlightIn,
     uint64_t currentCwndIn,
+    uint64_t ssthreshIn,
     std::string congestionEventIn,
     std::string stateIn,
     std::string recoveryStateIn,
@@ -511,6 +512,7 @@ folly::dynamic QLogCongestionMetricUpdateEvent::toDynamic() const {
 
   data["bytes_in_flight"] = bytesInFlight;
   data["current_cwnd"] = currentCwnd;
+  data["ssthresh"] = currentCwnd;
   data["congestion_event"] = congestionEvent;
   data["state"] = state;
   data["recovery_state"] = recoveryState;

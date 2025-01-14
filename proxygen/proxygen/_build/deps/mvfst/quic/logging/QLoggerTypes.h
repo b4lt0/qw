@@ -512,6 +512,7 @@ class QLogCongestionMetricUpdateEvent : public QLogEvent {
   QLogCongestionMetricUpdateEvent(
       uint64_t bytesInFlight,
       uint64_t currentCwnd,
+      uint64_t ssthresh,
       std::string congestionEvent,
       std::string state,
       std::string recoveryState,
@@ -519,6 +520,7 @@ class QLogCongestionMetricUpdateEvent : public QLogEvent {
   ~QLogCongestionMetricUpdateEvent() override = default;
   uint64_t bytesInFlight;
   uint64_t currentCwnd;
+  uint64_t ssthresh,
   std::string congestionEvent;
   std::string state;
   std::string recoveryState;
