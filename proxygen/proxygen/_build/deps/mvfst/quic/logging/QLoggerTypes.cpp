@@ -512,7 +512,7 @@ folly::dynamic QLogCongestionMetricUpdateEvent::toDynamic() const {
 
   data["bytes_in_flight"] = bytesInFlight;
   data["current_cwnd"] = currentCwnd;
-  data["ssthresh"] = currentCwnd;
+  data["ssthresh"] = ssthresh;
   data["congestion_event"] = congestionEvent;
   data["state"] = state;
   data["recovery_state"] = recoveryState;
