@@ -33,13 +33,19 @@ def plot_rtt(qlog_data):
     plt.grid(True)
     plt.show()
 
-def plot_metrics(qlog_data, plot_bytes_in_flight=False):
+def plot_metrics(qlog_data,
+                 plot_bytes_in_flight=False,
+                 plot_timeouts=False,
+                 plot_sstresh=False):
     times = []
     data_sent = []
     data_acknowledged = []
     data_lost = []
     cwnd_values = []
     bytes_in_flight_values = []
+    ssthresh_values = []
+    timeout_times = []
+    timeout_counts = {}
 
     cumulative_data_sent = 0
     cumulative_data_acknowledged = 0
@@ -49,6 +55,16 @@ def plot_metrics(qlog_data, plot_bytes_in_flight=False):
         event_time = float(event[0]) / 1000  # Convert to milliseconds
         event_type = event[2]
         event_data = event[3]
+
+        # Handle timeouts
+        if plot_timeouts and event[1] == 'recovery' and 'timeout' in event_type:
+            timeout_times.append(event_time)
+            timeout_counts[event_type] = timeout_counts.get(event_type, 0) + 1
+
+        # Collect `ssthresh` values if available
+        ssthresh = event_data.get('ssthresh')
+        if ssthresh is not None:
+            ssthresh_values.append((event_time, ssthresh))
 
         # Handle packet-related events
         if event_type == 'packet_sent':
@@ -68,13 +84,8 @@ def plot_metrics(qlog_data, plot_bytes_in_flight=False):
             bytes_in_flight = event_data.get('bytes_in_flight')
 
             if cwnd is None or bytes_in_flight is None:
-                #print(f"Skipping event at time {event_time} due to missing values.")
                 continue
 
-            # Debugging
-            print(f"Time: {event_time}, CWND: {cwnd}, Bytes in Flight: {bytes_in_flight}")
-
-            # Append to lists
             times.append(event_time)
             data_sent.append(cumulative_data_sent)
             data_acknowledged.append(cumulative_data_acknowledged)
@@ -83,12 +94,10 @@ def plot_metrics(qlog_data, plot_bytes_in_flight=False):
             if plot_bytes_in_flight:
                 bytes_in_flight_values.append(bytes_in_flight if bytes_in_flight is not None else 0)
 
-    # Check if data is available for plotting
     if not times:
         print("No valid data to plot.")
         return
 
-    # Plot Data
     plt.figure(figsize=(12, 8))
 
     # Data Transfer Metrics
@@ -96,6 +105,9 @@ def plot_metrics(qlog_data, plot_bytes_in_flight=False):
     plt.plot(times, data_sent, label='Data Sent (bytes)', color='blue')
     plt.plot(times, data_acknowledged, label='Data Acknowledged (bytes)', color='green')
     plt.plot(times, data_lost, label='Data Lost (bytes)', color='red')
+    if plot_timeouts:
+        for timeout_time in timeout_times:
+            plt.axvline(timeout_time, color='orange', linestyle='--', label='Timeout Event')
     plt.xlabel('Time (ms)')
     plt.ylabel('Data (bytes)')
     plt.title('Data Transfer Metrics Over Time')
@@ -106,14 +118,15 @@ def plot_metrics(qlog_data, plot_bytes_in_flight=False):
     plt.subplot(2, 1, 2)
     if any(cwnd_values):
         plt.plot(times, cwnd_values, label='Congestion Window (cwnd)', color='purple', marker='o')
-    else:
-        print("No valid cwnd data to plot.")
     if plot_bytes_in_flight:
         if any(bytes_in_flight_values):
             plt.plot(times, bytes_in_flight_values, label='Bytes in Flight', color='brown', marker='x')
-        else:
-            print("No valid bytes_in_flight data to plot.")
-
+    if plot_timeouts:
+        for timeout_time in timeout_times:
+            plt.axvline(timeout_time, color='orange', linestyle='--', label='Timeout Event')
+    if ssthresh_values:
+        ssthresh_times, ssthresh_vals = zip(*ssthresh_values)
+        plt.step(ssthresh_times, ssthresh_vals, label='SSThresh', color='red', linestyle='--')
 
     plt.xlabel('Time (ms)')
     plt.ylabel('Bytes')
@@ -124,18 +137,24 @@ def plot_metrics(qlog_data, plot_bytes_in_flight=False):
     plt.tight_layout()
     plt.show()
 
+    if plot_timeouts:
+        total_timeouts = sum(timeout_counts.values())
+        print("\nTimeout Summary:")
+        for timeout_type, count in timeout_counts.items():
+            print(f"- {timeout_type}: {count}")
+        print(f"Total Timeouts: {total_timeouts}")
 
 
 parser = argparse.ArgumentParser(description='Process a qlog file.')
 parser.add_argument('qlog_path', type=str, help='Path to the qlog file')
-# parser.add_argument('mode', type=str, help='rtt or congestion metrics')
 parser.add_argument('--plot-bytes-in-flight', action='store_true', default=False, 
                     help='Enable plotting of bytes in flight (default: disabled)')
+parser.add_argument('--plot-timeouts', action='store_true', default=False,
+                    help='Enable plotting of timeout events and SSThresh (default: disabled)')
 
+args = parser.parse_args()
 
-args = parser.parse_args() 
-
-qlog_path=args.qlog_path
+qlog_path = args.qlog_path
 
 if not os.path.isfile(qlog_path):
     print(f'Error: The file {qlog_path} does not exist.')
@@ -145,4 +164,6 @@ with open(qlog_path, 'r') as file:
     qlog_data = json.load(file)
 
 plot_rtt(qlog_data)
-plot_metrics(qlog_data, plot_bytes_in_flight=args.plot_bytes_in_flight)
+plot_metrics(qlog_data, plot_bytes_in_flight=args.plot_bytes_in_flight,
+                        plot_timeouts=args.plot_timeouts,
+                        plot_sstresh=args.plot_sstresh)
