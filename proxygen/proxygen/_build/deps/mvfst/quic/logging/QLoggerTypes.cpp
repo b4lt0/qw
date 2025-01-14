@@ -494,6 +494,7 @@ QLogCongestionMetricUpdateEvent::QLogCongestionMetricUpdateEvent(
     std::chrono::microseconds refTimeIn)
     : bytesInFlight{bytesInFlightIn},
       currentCwnd{currentCwndIn},
+      ssthresh{ssthreshIn},
       congestionEvent{std::move(congestionEventIn)},
       state{std::move(stateIn)},
       recoveryState{std::move(recoveryStateIn)} {
