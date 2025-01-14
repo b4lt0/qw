@@ -138,6 +138,7 @@ namespace quic {
             quicConnectionState_.qLogger->addCongestionMetricUpdate(
                     quicConnectionState_.lossState.inflightBytes,
                     getCongestionWindow(),
+                    getSlowStartTreshold(),
                     kCongestionPacketAck);
         }
 
@@ -300,7 +301,7 @@ namespace quic {
             return 0; // no writable bytes if inflight >= cwnd
         } else {
             // TODO: if inflightBytes is somehow larger than cwndBytes, this could cause an underflow.
-            return cwndBytes_ - quicConnectionState_.lossState.inflightBytes; // remaining space in cwnd
+            return subtractAndCheckUnderflow(cwndBytes_, quicConnectionState_.lossState.inflightBytes); // remaining space in cwnd
             }
     }
 
