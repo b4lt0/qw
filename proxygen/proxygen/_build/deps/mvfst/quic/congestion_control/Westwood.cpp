@@ -287,6 +287,13 @@ namespace quic {
         bandwidthNewestEstimate_ = bw_ns_est;
         // update long-term smoothed bandwidth estimate
         bandwidthEstimate_ = westwoodLowPassFilter(bandwidthEstimate_, bw_ns_est);
+
+        // Log the bandwidth estimate
+        if (quicConnectionState_.qLogger) {
+            quicConnectionState_.qLogger->addBandwidthEstUpdate(
+                bandwidthEstimate_, 
+                std::chrono::microseconds(delta));
+        }
     }
 
     // implement the low-pass filter: (7/8 * old_value) + (1/8 * new_value)
