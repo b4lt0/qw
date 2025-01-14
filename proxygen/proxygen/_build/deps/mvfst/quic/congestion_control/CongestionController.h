@@ -123,6 +123,9 @@ struct CongestionController {
    */
   FOLLY_NODISCARD virtual uint64_t getCongestionWindow() const = 0;
 
+  FOLLY_NODISCARD virtual uint64_t getSlowStartThreshold() const = 0;
+
+
   /**
    * Return the congestion controller's bandwidth estimate, if available.
    *
