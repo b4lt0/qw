@@ -87,7 +87,7 @@ namespace quic {
                  << " inflight=" << quicConnectionState_.lossState.inflightBytes << " " << quicConnectionState_;
         // update congestion metrics in the logger
         if (quicConnectionState_.qLogger) {
-            quicConnectionState_.qLogger->addCongestionMetricUpdate(
+            quicConnectionState_.qLogger->addCongestionMetricUpdateSST(
                     quicConnectionState_.lossState.inflightBytes,
                     getCongestionWindow(),
                     getSlowStartThreshold(),
@@ -107,7 +107,7 @@ namespace quic {
                  << " packetNum=" << packet.packet.header.getPacketSequenceNum()
                  << " " << quicConnectionState_;
         if (quicConnectionState_.qLogger) {
-            quicConnectionState_.qLogger->addCongestionMetricUpdate(
+            quicConnectionState_.qLogger->addCongestionMetricUpdateSST(
                     quicConnectionState_.lossState.inflightBytes,
                     getCongestionWindow(),
                     getSlowStartThreshold(),
@@ -135,7 +135,7 @@ namespace quic {
                  << " cwnd=" << cwndBytes_
                  << " inflight=" << quicConnectionState_.lossState.inflightBytes << " " << quicConnectionState_;
         if (quicConnectionState_.qLogger) {
-            quicConnectionState_.qLogger->addCongestionMetricUpdate(
+            quicConnectionState_.qLogger->addCongestionMetricUpdateSST(
                     quicConnectionState_.lossState.inflightBytes,
                     getCongestionWindow(),
                     getSlowStartThreshold(),
@@ -241,7 +241,7 @@ namespace quic {
         }
 
         if (quicConnectionState_.qLogger) {
-            quicConnectionState_.qLogger->addCongestionMetricUpdate(
+            quicConnectionState_.qLogger->addCongestionMetricUpdateSST(
                     quicConnectionState_.lossState.inflightBytes,
                     getCongestionWindow(),
                     getSlowStartThreshold(),
@@ -253,7 +253,7 @@ namespace quic {
                      << " cwnd=" << cwndBytes_
                      << " inflight=" << quicConnectionState_.lossState.inflightBytes << " " << quicConnectionState_;
             if (quicConnectionState_.qLogger) {
-                quicConnectionState_.qLogger->addCongestionMetricUpdate(
+                quicConnectionState_.qLogger->addCongestionMetricUpdateSST(
                         quicConnectionState_.lossState.inflightBytes,
                         getCongestionWindow(),
                         getSlowStartThreshold(),

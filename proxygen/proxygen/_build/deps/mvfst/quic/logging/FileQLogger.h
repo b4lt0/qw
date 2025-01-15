@@ -71,15 +71,14 @@ class FileQLogger : public BaseQLogger {
       std::string state = "",
       std::string recoveryState = "") override;
 
-  //overload    
-  void addCongestionMetricUpdate(
+  void addCongestionMetricUpdateSST(
       uint64_t bytesInFlight,
       uint64_t currentCwnd,
       uint64_t ssthresh,
       std::string congestionEvent,
       std::string state = "",
       std::string recoveryState = "") override;
-      
+
   void addPacingMetricUpdate(
       uint64_t pacingBurstSizeIn,
       std::chrono::microseconds pacingIntervalIn) override;

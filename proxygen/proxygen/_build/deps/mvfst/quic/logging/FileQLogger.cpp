@@ -271,8 +271,8 @@ void FileQLogger::addCongestionMetricUpdate(
       refTime));
 }
 
-//overload
-void FileQLogger::addCongestionMetricUpdate(
+
+void FileQLogger::addCongestionMetricUpdateSST(
     uint64_t bytesInFlight,
     uint64_t currentCwnd,
     uint64_t ssthresh,
