@@ -253,26 +253,26 @@ void FileQLogger::addTransportSummary(const TransportSummaryArgs& args) {
       refTime));
 }
 
+// void FileQLogger::addCongestionMetricUpdate(
+//     uint64_t bytesInFlight,
+//     uint64_t currentCwnd,
+//     std::string congestionEvent,
+//     std::string state,
+//     std::string recoveryState) {
+//   auto refTime = std::chrono::duration_cast<std::chrono::microseconds>(
+//       std::chrono::steady_clock::now().time_since_epoch());
+
+//   handleEvent(std::make_unique<quic::QLogCongestionMetricUpdateEvent>(
+//       bytesInFlight,
+//       currentCwnd,
+//       std::move(congestionEvent),
+//       std::move(state),
+//       std::move(recoveryState),
+//       refTime));
+// }
+
+
 void FileQLogger::addCongestionMetricUpdate(
-    uint64_t bytesInFlight,
-    uint64_t currentCwnd,
-    std::string congestionEvent,
-    std::string state,
-    std::string recoveryState) {
-  auto refTime = std::chrono::duration_cast<std::chrono::microseconds>(
-      std::chrono::steady_clock::now().time_since_epoch());
-
-  handleEvent(std::make_unique<quic::QLogCongestionMetricUpdateEvent>(
-      bytesInFlight,
-      currentCwnd,
-      std::move(congestionEvent),
-      std::move(state),
-      std::move(recoveryState),
-      refTime));
-}
-
-
-void FileQLogger::addCongestionMetricUpdateSST(
     uint64_t bytesInFlight,
     uint64_t currentCwnd,
     uint64_t ssthresh,

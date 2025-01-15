@@ -76,14 +76,6 @@ class QLogger {
   virtual void addCongestionMetricUpdate(
       uint64_t bytesInFlight,
       uint64_t currentCwnd,
-      std::string congestionEvent,
-      std::string state = "",
-      std::string recoveryState = "") = 0;
-
-  //overload     
-  virtual void addCongestionMetricUpdateSST(
-      uint64_t bytesInFlight,
-      uint64_t currentCwnd,
       uint64_t ssthresh,
       std::string congestionEvent,
       std::string state = "",
