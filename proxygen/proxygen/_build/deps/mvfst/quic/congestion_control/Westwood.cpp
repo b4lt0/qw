@@ -308,8 +308,9 @@ namespace quic {
             return 0; // no writable bytes if inflight >= cwnd
         } else {
             // TODO: if inflightBytes is somehow larger than cwndBytes, this could cause an underflow.
-            subtractAndCheckUnderflow(cwndBytes_, quicConnectionState_.lossState.inflightBytes); // remaining space in cwnd
-            return cwndBytes_;
+            uint64_t cwnd = getCongestionWindow();
+            subtractAndCheckUnderflow(cwnd, quicConnectionState_.lossState.inflightBytes); // remaining space in cwnd
+            return cwnd;
             }
     }
 
