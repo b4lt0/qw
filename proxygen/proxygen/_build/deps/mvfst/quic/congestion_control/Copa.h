@@ -41,6 +41,7 @@ class Copa : public CongestionController {
 
   uint64_t getWritableBytes() const noexcept override;
   uint64_t getCongestionWindow() const noexcept override;
+  uint64_t getSlowStartThreshold() const noexcept;
   CongestionControlType type() const noexcept override;
 
   bool inSlowStart();

@@ -32,6 +32,7 @@ class Copa2 : public CongestionController {
 
   FOLLY_NODISCARD uint64_t getWritableBytes() const noexcept override;
   FOLLY_NODISCARD uint64_t getCongestionWindow() const noexcept override;
+  uint64_t getSlowStartThreshold() const noexcept;
   FOLLY_NODISCARD CongestionControlType type() const noexcept override;
 
   void setAppIdle(bool, TimePoint) noexcept override;

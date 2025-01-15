@@ -136,6 +136,8 @@ class BbrCongestionController : public CongestionController {
 
   uint64_t getCongestionWindow() const noexcept override;
 
+    uint64_t getSlowStartThreshold() const noexcept;
+
   [[nodiscard]] Optional<Bandwidth> getBandwidth() const noexcept override;
 
   CongestionControlType type() const noexcept override;

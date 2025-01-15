@@ -530,7 +530,7 @@ uint64_t BbrCongestionController::getWritableBytes() const noexcept {
 }
 
 // returns the current slow start threshold
-uint64_t getSlowStartThreshold() const noexcept {
+uint64_t BbrCongestionController::getSlowStartThreshold() const noexcept {
   uint64_t ssthresh_=0;
     return ssthresh_;
 }

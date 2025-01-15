@@ -171,7 +171,7 @@ uint64_t NewReno::getCongestionWindow() const noexcept {
 }
 
 // returns the current slow start threshold
-uint64_t getSlowStartThreshold() const noexcept {
+uint64_t NewReno::getSlowStartThreshold() const noexcept {
     return ssthresh_;
 }
 

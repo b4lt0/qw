@@ -70,7 +70,7 @@ uint64_t Cubic::getCongestionWindow() const noexcept {
 }
 
 // returns the current slow start threshold
-uint64_t getSlowStartThreshold() const noexcept {
+uint64_t Cubic::getSlowStartThreshold() const noexcept {
     return ssthresh_;
 }
 

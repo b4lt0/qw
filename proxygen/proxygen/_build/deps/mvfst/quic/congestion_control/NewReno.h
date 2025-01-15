@@ -30,6 +30,7 @@ class NewReno : public CongestionController {
 
   uint64_t getWritableBytes() const noexcept override;
   uint64_t getCongestionWindow() const noexcept override;
+  uint64_t getSlowStartThreshold() const noexcept;
   void setAppIdle(bool, TimePoint) noexcept override;
   void setAppLimited() override;
 

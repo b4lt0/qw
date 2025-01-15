@@ -233,7 +233,7 @@ uint64_t Copa2::getCongestionWindow() const noexcept {
 }
 
 // returns the current slow start threshold
-uint64_t getSlowStartThreshold() const noexcept {
+uint64_t Copa2::getSlowStartThreshold() const noexcept {
     uint64_t ssthresh_=0;
     return ssthresh_;
 }

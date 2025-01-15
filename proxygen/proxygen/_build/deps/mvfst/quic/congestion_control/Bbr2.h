@@ -44,6 +44,8 @@ class Bbr2CongestionController : public CongestionController {
 
   FOLLY_NODISCARD uint64_t getCongestionWindow() const noexcept override;
 
+    uint64_t getSlowStartThreshold() const noexcept;
+
   FOLLY_NODISCARD CongestionControlType type() const noexcept override;
 
   FOLLY_NODISCARD bool isInBackgroundMode() const override;
