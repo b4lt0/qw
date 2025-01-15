@@ -275,7 +275,7 @@ void FileQLogger::addCongestionMetricUpdate(
 void FileQLogger::addCongestionMetricUpdate(
     uint64_t bytesInFlight,
     uint64_t currentCwnd,
-    uint64_t sstresh,
+    uint64_t ssthresh,
     std::string congestionEvent,
     std::string state,
     std::string recoveryState) {
