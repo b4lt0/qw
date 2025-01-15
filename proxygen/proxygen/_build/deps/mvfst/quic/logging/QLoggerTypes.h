@@ -507,8 +507,30 @@ class QLogTransportSummaryEvent : public QLogEvent {
   FOLLY_NODISCARD folly::dynamic toDynamic() const override;
 };
 
+// class QLogCongestionMetricUpdateEvent : public QLogEvent {
+//  public:
+//   QLogCongestionMetricUpdateEvent(
+//       uint64_t bytesInFlight,
+//       uint64_t currentCwnd,
+//       uint64_t ssthresh,
+//       std::string congestionEvent,
+//       std::string state,
+//       std::string recoveryState,
+//       std::chrono::microseconds refTimeIn);
+//   ~QLogCongestionMetricUpdateEvent() override = default;
+//   uint64_t bytesInFlight;
+//   uint64_t currentCwnd;
+//   uint64_t ssthresh;
+//   std::string congestionEvent;
+//   std::string state;
+//   std::string recoveryState;
+
+//   FOLLY_NODISCARD folly::dynamic toDynamic() const override;
+// };
+
 class QLogCongestionMetricUpdateEvent : public QLogEvent {
  public:
+  // Existing 7-argument constructor
   QLogCongestionMetricUpdateEvent(
       uint64_t bytesInFlight,
       uint64_t currentCwnd,
@@ -516,11 +538,37 @@ class QLogCongestionMetricUpdateEvent : public QLogEvent {
       std::string congestionEvent,
       std::string state,
       std::string recoveryState,
-      std::chrono::microseconds refTimeIn);
+      std::chrono::microseconds refTimeIn)
+      : QLogEvent(refTimeIn),
+        bytesInFlight(bytesInFlight),
+        currentCwnd(currentCwnd),
+        ssthresh(ssthresh),
+        congestionEvent(std::move(congestionEvent)),
+        state(std::move(state)),
+        recoveryState(std::move(recoveryState)) {}
+
+  // NEW constructor that omits 'ssthresh'
+  QLogCongestionMetricUpdateEvent(
+      uint64_t bytesInFlight,
+      uint64_t currentCwnd,
+      std::string congestionEvent,
+      std::string state,
+      std::string recoveryState,
+      std::chrono::microseconds refTimeIn)
+      : QLogEvent(refTimeIn),
+        bytesInFlight(bytesInFlight),
+        currentCwnd(currentCwnd),
+        ssthresh(0), // Default to 0
+        congestionEvent(std::move(congestionEvent)),
+        state(std::move(state)),
+        recoveryState(std::move(recoveryState)) {}
+
   ~QLogCongestionMetricUpdateEvent() override = default;
+
+  // Member variables
   uint64_t bytesInFlight;
   uint64_t currentCwnd;
-  uint64_t ssthresh;
+  uint64_t ssthresh;       // Will default to 0 in the new constructor
   std::string congestionEvent;
   std::string state;
   std::string recoveryState;
