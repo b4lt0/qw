@@ -139,7 +139,7 @@ def extract_bandwidth_metrics(qlog_data):
         if event[1] == 'recovery' and event[2] == 'bandwidth_est_update':
             event_time_ms = float(event[0])
             times_bw.append(event_time_ms / 1000.0)  # convert to ms
-            bw_estimates.append(event[3].get('bandwidth_estimate', None))
+            bw_estimates.append(event[3].get('bandwidth_bytes', None))
 
     return times_bw, bw_estimates
 
