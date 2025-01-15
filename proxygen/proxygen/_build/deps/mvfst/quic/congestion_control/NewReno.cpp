@@ -33,7 +33,6 @@ void NewReno::onRemoveBytesFromInflight(uint64_t bytes) {
   if (conn_.qLogger) {
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes, getCongestionWindow(), 
-          getSlowStartThreshold(),
           getSlowStartThreshold(),kRemoveInflight);
   }
 }
@@ -141,6 +140,7 @@ void NewReno::onPacketLoss(const LossEvent& loss) {
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         getCongestionWindow(),
+        getSlowStartThreshold(),
         kCongestionPacketLoss);
   }
   if (loss.persistentCongestion) {
