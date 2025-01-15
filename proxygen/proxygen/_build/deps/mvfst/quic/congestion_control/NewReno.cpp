@@ -32,7 +32,9 @@ void NewReno::onRemoveBytesFromInflight(uint64_t bytes) {
            << " inflight=" << conn_.lossState.inflightBytes << " " << conn_;
   if (conn_.qLogger) {
     conn_.qLogger->addCongestionMetricUpdate(
-        conn_.lossState.inflightBytes, getCongestionWindow(), kRemoveInflight);
+        conn_.lossState.inflightBytes, getCongestionWindow(), 
+          getSlowStartThreshold(),
+          getSlowStartThreshold(),kRemoveInflight);
   }
 }
 
@@ -48,6 +50,7 @@ void NewReno::onPacketSent(const OutstandingPacketWrapper& packet) {
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         getCongestionWindow(),
+          getSlowStartThreshold(),
         kCongestionPacketSent);
   }
 }
@@ -62,6 +65,7 @@ void NewReno::onAckEvent(const AckEvent& ack) {
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         getCongestionWindow(),
+          getSlowStartThreshold(),
         kCongestionPacketAck);
   }
   for (const auto& packet : ack.ackedPackets) {
@@ -147,6 +151,7 @@ void NewReno::onPacketLoss(const LossEvent& loss) {
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kPersistentCongestion);
     }
     cwndBytes_ = conn_.transportSettings.minCwndInMss * conn_.udpSendPacketLen;
@@ -163,6 +168,11 @@ uint64_t NewReno::getWritableBytes() const noexcept {
 
 uint64_t NewReno::getCongestionWindow() const noexcept {
   return cwndBytes_;
+}
+
+// returns the current slow start threshold
+uint64_t getSlowStartThreshold() const noexcept {
+    return ssthresh_;
 }
 
 bool NewReno::inSlowStart() const noexcept {

@@ -115,6 +115,7 @@ void BbrCongestionController::onPacketLoss(
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kPersistentCongestion,
           bbrStateToString(state_),
           bbrRecoveryStateToString(recoveryState_));
@@ -197,6 +198,7 @@ void BbrCongestionController::onPacketAcked(
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kCongestionPacketAck,
           bbrStateToString(state_),
           bbrRecoveryStateToString(recoveryState_));
@@ -525,6 +527,12 @@ uint64_t BbrCongestionController::getWritableBytes() const noexcept {
   return getCongestionWindow() > conn_.lossState.inflightBytes
       ? getCongestionWindow() - conn_.lossState.inflightBytes
       : 0;
+}
+
+// returns the current slow start threshold
+uint64_t getSlowStartThreshold() const noexcept {
+  uint64_t ssthresh_=0;
+    return ssthresh_;
 }
 
 std::chrono::microseconds BbrCongestionController::minRtt() const noexcept {

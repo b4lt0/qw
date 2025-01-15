@@ -40,7 +40,10 @@ void Copa::onRemoveBytesFromInflight(uint64_t bytes) {
            << " inflight=" << conn_.lossState.inflightBytes << " " << conn_;
   if (conn_.qLogger) {
     conn_.qLogger->addCongestionMetricUpdate(
-        conn_.lossState.inflightBytes, getCongestionWindow(), kRemoveInflight);
+        conn_.lossState.inflightBytes,
+        getCongestionWindow(),
+        getSlowStartThreshold(), 
+        kRemoveInflight);
   }
 }
 
@@ -58,6 +61,7 @@ void Copa::onPacketSent(const OutstandingPacketWrapper& packet) {
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         getCongestionWindow(),
+          getSlowStartThreshold(),
         kCongestionPacketSent);
   }
 }
@@ -181,6 +185,7 @@ void Copa::onPacketAcked(const AckEvent& ack) {
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         getCongestionWindow(),
+          getSlowStartThreshold(),
         kCongestionPacketAck);
   }
 
@@ -293,6 +298,7 @@ void Copa::onPacketLoss(const LossEvent& loss) {
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         getCongestionWindow(),
+          getSlowStartThreshold(),
         kCongestionPacketLoss);
   }
   DCHECK(loss.largestLostPacketNum.has_value());
@@ -306,6 +312,7 @@ void Copa::onPacketLoss(const LossEvent& loss) {
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kPersistentCongestion);
     }
     cwndBytes_ = conn_.transportSettings.minCwndInMss * conn_.udpSendPacketLen;
@@ -325,6 +332,12 @@ uint64_t Copa::getWritableBytes() const noexcept {
 
 uint64_t Copa::getCongestionWindow() const noexcept {
   return cwndBytes_;
+}
+
+// returns the current slow start threshold
+uint64_t getSlowStartThreshold() const noexcept {
+  uint64_t ssthresh_=0;
+    return ssthresh_;
 }
 
 bool Copa::inSlowStart() {

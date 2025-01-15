@@ -104,6 +104,7 @@ void Bbr2CongestionController::onPacketAckOrLoss(
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         getCongestionWindow(),
+        getSlowStartThreshold(),
         kCongestionPacketAck,
         bbr2StateToString(state_));
     conn_.qLogger->addNetworkPathModelUpdate(
@@ -217,6 +218,12 @@ uint64_t Bbr2CongestionController::getWritableBytes() const noexcept {
 
 uint64_t Bbr2CongestionController::getCongestionWindow() const noexcept {
   return cwndBytes_;
+}
+
+// returns the current slow start threshold
+uint64_t getSlowStartThreshold() const noexcept {
+  uint64_t ssthresh_=0;
+    return ssthresh_;
 }
 
 CongestionControlType Bbr2CongestionController::type() const noexcept {

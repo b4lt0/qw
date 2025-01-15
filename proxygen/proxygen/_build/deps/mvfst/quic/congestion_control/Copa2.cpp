@@ -30,7 +30,8 @@ void Copa2::onRemoveBytesFromInflight(uint64_t bytes) {
            << " inflight=" << conn_.lossState.inflightBytes << " " << conn_;
   if (conn_.qLogger) {
     conn_.qLogger->addCongestionMetricUpdate(
-        conn_.lossState.inflightBytes, getCongestionWindow(), kRemoveInflight);
+        conn_.lossState.inflightBytes, getCongestionWindow(), 
+          getSlowStartThreshold(), kRemoveInflight);
   }
 }
 
@@ -48,6 +49,7 @@ void Copa2::onPacketSent(const OutstandingPacketWrapper& packet) {
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         getCongestionWindow(),
+          getSlowStartThreshold(),
         kCongestionPacketSent);
   }
 }
@@ -114,6 +116,7 @@ void Copa2::onPacketLoss(const LossEvent& loss) {
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         getCongestionWindow(),
+          getSlowStartThreshold(),
         kCongestionPacketLoss);
   }
   DCHECK(loss.largestLostPacketNum.has_value());
@@ -131,6 +134,7 @@ void Copa2::onPacketLoss(const LossEvent& loss) {
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kPersistentCongestion);
     }
   }
@@ -226,6 +230,12 @@ uint64_t Copa2::getWritableBytes() const noexcept {
 
 uint64_t Copa2::getCongestionWindow() const noexcept {
   return cwndBytes_;
+}
+
+// returns the current slow start threshold
+uint64_t getSlowStartThreshold() const noexcept {
+    uint64_t ssthresh_=0;
+    return ssthresh_;
 }
 
 CongestionControlType Copa2::type() const noexcept {

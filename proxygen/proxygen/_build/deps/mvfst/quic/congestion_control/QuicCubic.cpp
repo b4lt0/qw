@@ -35,6 +35,7 @@ Cubic::Cubic(
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         cwndBytes_,
+          getSlowStartThreshold(),
         kCubicInit,
         cubicStateToString(state_).str());
   }
@@ -68,6 +69,11 @@ uint64_t Cubic::getCongestionWindow() const noexcept {
   return cwndBytes_;
 }
 
+// returns the current slow start threshold
+uint64_t getSlowStartThreshold() const noexcept {
+    return ssthresh_;
+}
+
 /**
  * TODO: onPersistentCongestion entirely depends on how long a loss period is,
  * not how much a sender sends during that period. If the connection is app
@@ -94,6 +100,7 @@ void Cubic::onPersistentCongestion() {
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         getCongestionWindow(),
+          getSlowStartThreshold(),
         kPersistentCongestion,
         cubicStateToString(state_).str());
   }
@@ -142,6 +149,7 @@ void Cubic::onPacketLoss(const LossEvent& loss) {
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kCubicLoss,
           cubicStateToString(state_).str());
     }
@@ -151,6 +159,7 @@ void Cubic::onPacketLoss(const LossEvent& loss) {
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kCubicSkipLoss,
           cubicStateToString(state_).str());
     }
@@ -168,6 +177,7 @@ void Cubic::onRemoveBytesFromInflight(uint64_t bytes) {
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         getCongestionWindow(),
+          getSlowStartThreshold(),
         kRemoveInflight,
         cubicStateToString(state_).str());
   }
@@ -279,6 +289,7 @@ int64_t Cubic::calculateCubicCwndDelta(TimePoint ackTime) noexcept {
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         getCongestionWindow(),
+          getSlowStartThreshold(),
         kCubicSteadyCwnd,
         cubicStateToString(state_).str());
   }
@@ -356,6 +367,7 @@ void Cubic::onPacketAcked(const AckEvent& ack) {
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kCubicSkipAck,
           cubicStateToString(state_).str());
     }
@@ -381,6 +393,7 @@ void Cubic::onPacketAcked(const AckEvent& ack) {
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kCwndNoChange,
           cubicStateToString(state_).str());
     }
@@ -389,6 +402,7 @@ void Cubic::onPacketAcked(const AckEvent& ack) {
     conn_.qLogger->addCongestionMetricUpdate(
         conn_.lossState.inflightBytes,
         getCongestionWindow(),
+          getSlowStartThreshold(),
         kCongestionPacketAck,
         cubicStateToString(state_).str());
   }
@@ -584,6 +598,7 @@ void Cubic::onPacketAckedInSteady(const AckEvent& ack) {
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kAckInQuiescence,
           cubicStateToString(state_).str());
     }
@@ -616,6 +631,7 @@ void Cubic::onPacketAckedInSteady(const AckEvent& ack) {
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kResetTimeToOrigin,
           cubicStateToString(state_).str());
     }
@@ -636,6 +652,7 @@ void Cubic::onPacketAckedInSteady(const AckEvent& ack) {
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kResetLastReductionTime,
           cubicStateToString(state_).str());
     }
@@ -676,6 +693,7 @@ void Cubic::onPacketAckedInSteady(const AckEvent& ack) {
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kRenoCwndEstimation,
           cubicStateToString(state_).str());
     }
@@ -702,6 +720,7 @@ void Cubic::onPacketAckedInRecovery(const AckEvent& ack) {
       conn_.qLogger->addCongestionMetricUpdate(
           conn_.lossState.inflightBytes,
           getCongestionWindow(),
+          getSlowStartThreshold(),
           kPacketAckedInRecovery,
           cubicStateToString(state_).str());
     }
