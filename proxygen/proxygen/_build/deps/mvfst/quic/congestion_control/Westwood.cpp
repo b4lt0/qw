@@ -169,6 +169,8 @@ namespace quic {
 
         // elapsed time since last BW update
         auto now = Clock::now();    
+        //remember that bw will never be estimated if delta never gets bigger than 50ms,
+        //that is what happens with very small rtt
         uint64_t delta = std::chrono::duration_cast<std::chrono::microseconds>(now - rttWindowStartTime_).count();
         
         // if elapsed time exceeds max(lastRTT, minimal threshold), recalc bandwidth
