@@ -76,9 +76,13 @@ def extract_congestion_metrics(qlog_data):
         event_data = event[3] if len(event) > 3 else {}
 
         # Check for timeouts
-        if category == 'recovery' and 'timeout' in event_type:
+        if category == 'transport' and event_type == 'transport_state_update':
+        # Check if this state_update indicates a timeout
+        if event_data.get('update') == 'loss timeout expired':
             timeouts.append(event_time)
-            timeout_counts[event_type] = timeout_counts.get(event_type, 0) + 1
+            timeout_counts['loss_timeout_expired'] = timeout_counts.get('loss_timeout_expired', 0) + 1
+
+
 
         # ssthresh updates
         ssthresh = event_data.get('ssthresh', None)
