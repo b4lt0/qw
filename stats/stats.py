@@ -77,10 +77,10 @@ def extract_congestion_metrics(qlog_data):
 
         # Check for timeouts
         if category == 'transport' and event_type == 'transport_state_update':
-        # Check if this state_update indicates a timeout
-        if event_data.get('update') == 'loss timeout expired':
-            timeouts.append(event_time)
-            timeout_counts['loss_timeout_expired'] = timeout_counts.get('loss_timeout_expired', 0) + 1
+            # Check if this state_update indicates a timeout
+            if event_data.get('update') == 'loss timeout expired':
+                timeouts.append(event_time)
+                timeout_counts['loss_timeout_expired'] = timeout_counts.get('loss_timeout_expired', 0) + 1
 
 
 
