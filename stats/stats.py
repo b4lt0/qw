@@ -196,9 +196,9 @@ def plot_all_subplots(
     ############################################################################
     ax_rtt = axs[0, 0]
     if times_rtt:
-        ax_rtt.plot(times_rtt, latest_rtts, label='Latest RTT', linestyle='-', marker='o')
-        ax_rtt.plot(times_rtt, min_rtts, label='Min RTT', linestyle='--', marker='x')
-        ax_rtt.plot(times_rtt, smoothed_rtts, label='Smoothed RTT', linestyle='-.', marker='s')
+        ax_rtt.plot(times_rtt, latest_rtts, label='Latest RTT', linestyle='-')#, marker='o')
+        ax_rtt.plot(times_rtt, min_rtts, label='Min RTT', linestyle='--')#, marker='x')
+        ax_rtt.plot(times_rtt, smoothed_rtts, label='Smoothed RTT', linestyle='-.')#, marker='s')
         ax_rtt.set_xlabel("Time (ms)")
         ax_rtt.set_ylabel("RTT (ms)")
         ax_rtt.set_title("RTT Metrics Over Time")
@@ -247,12 +247,12 @@ def plot_all_subplots(
     if times_cc:
         # Plot cwnd
         ax_cc.plot(times_cc, cwnd_values, label='Congestion Window (cwnd)',
-                   color='purple', marker='o')
+                   color='purple')#, marker='o')
 
         # Plot bytes in flight if requested
         if plot_bytes_in_flight:
             ax_cc.plot(times_cc, bif_values, label='Bytes in Flight',
-                       color='brown', marker='x')
+                       color='brown')#, marker='x')
 
         # Mark timeouts if present
         if timeout_times:
