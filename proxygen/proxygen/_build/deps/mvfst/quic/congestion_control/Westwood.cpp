@@ -226,9 +226,13 @@ namespace quic {
             endOfRecovery_ = Clock::now(); // mark start of new recovery
             // set ssthresh based on estomated bandwidth and minimum rtt
             uint64_t rttMinUs = rttSampler_.minRtt().count(); // current min RTT
+
+        //################################################################################################################
             ssthresh_ = std::max(
                 static_cast<uint64_t>((bandwidthEstimate_ * (rttMinUs/1e6))),
                                  2*quicConnectionState_.udpSendPacketLen);
+        //################################################################################################################
+        
             // set cwnd to current ssthresh
             cwndBytes_ = ssthresh_;
             // LOG
@@ -282,9 +286,13 @@ namespace quic {
         // compute a new BW estimate:
         // if no previous estimate, use (bytesAckedInCurrentInterval_/delta)
         // else filter previous estimate with new sample
+
+        //################################################################################################################
         uint64_t bw_ns_est = (bandwidthNewestEstimate_ == 0 && bandwidthEstimate_ == 0)
                             ? bytesAckedInCurrentInterval_ / (delta/1e6)
                             : westwoodLowPassFilter(bandwidthNewestEstimate_, bytesAckedInCurrentInterval_ / (delta/1e6));
+        //################################################################################################################
+
         // update instantaneous bandwidth estimate
         bandwidthNewestEstimate_ = bw_ns_est;
         // update long-term smoothed bandwidth estimate
