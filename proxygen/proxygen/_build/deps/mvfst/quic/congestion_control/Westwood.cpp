@@ -178,6 +178,8 @@ namespace quic {
             updateWestwoodBandwidthEstimates(delta); // update bandwidth estimate
             rttWindowStartTime_ = now; // reset measurement interval start
             bytesAckedInCurrentInterval_ = 0; // reset acked bytes count
+            VLOG(1) << "Bw estimate " << bandwidthEstimate_ ;
+
         }
 
         // adjust the congestion window depending on phase
