@@ -31,6 +31,40 @@ function disabe_nic_opt()
    sudo ethtool -K $DEV gso off
 }
 
+# This function applies egress bandwidth control and delay
+# INPUT PARAMETERS:
+# 1 - Bottleneck buffer size in KB (e.g., 30 for 30KB)
+# 2 - Device interface (e.g., eno1)
+# 3 - Bandwidth limit in KBps (e.g., 1250 for 10MBps)
+# 4 - Delay in ms (e.g., 50 for 50ms)
+function tc_egress_with_delay() {
+   QUEUE=$1
+   DEV=$2
+   KBPS=$3
+   DELAY=$4
+   BRATE=$[$KBPS * 8] # Convert KBps to kbps
+   MTU=1000
+   LIMIT=$[$MTU * $QUEUE] # Queue length in bytes
+
+   echo "Applying egress bandwidth and delay on $DEV"
+   echo "* Bandwidth: ${BRATE}kbit (${KBPS} KBps)"
+   echo "* Delay: ${DELAY}ms"
+
+   # Add TBF as root qdisc for bandwidth control
+   $tc qdisc add dev $DEV root handle 1: tbf rate ${BRATE}kbit minburst $MTU burst $[$MTU*10] limit $LIMIT
+
+   # Add NetEm as a child qdisc for delay
+   $tc qdisc add dev $DEV parent 1:1 handle 10: netem delay ${DELAY}ms
+}
+
+# This function removes both egress bandwidth control and delay
+# INPUT PARAMETER: 1 - Device interface (e.g., eno1)
+function tc_del_egress_with_delay() {
+   DEV=$1
+   echo "Removing egress bandwidth and delay on $DEV"
+   $tc qdisc del dev $DEV root
+}
+
 # This function introduces link capacity constraints on incoming traffic that comes from an IP address
 # INPUT PARAMETER
 # 1 : IP address of the sender machine: example 192.168.0.10
