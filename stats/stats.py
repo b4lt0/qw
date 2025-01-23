@@ -34,6 +34,8 @@ def extract_rtt_metrics(qlog_data):
             min_rtts.append(event[3].get('min_rtt', None))
             smoothed_rtts.append(event[3].get('smoothed_rtt', None))
 
+    times_rtt[0], latest_rtts[0], min_rtts[0], smoothed_rtts[0]=0
+
     return times_rtt, latest_rtts, min_rtts, smoothed_rtts
 
 
