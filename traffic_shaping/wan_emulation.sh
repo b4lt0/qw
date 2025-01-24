@@ -204,4 +204,100 @@ function add_sfq_egress()
    $tc qdisc add dev $DEV parent 1:1 handle 10: sfq perturb 10
 }
 
+# This function applies INGRESS bandwidth control and delay,
+# similarly to tc_egress_with_delay, but uses an ifb device.
+# INPUT PARAMETERS:
+# 1 - Bottleneck buffer size in KB (e.g., 30 for 30KB)
+# 2 - Device interface (e.g., eth0)
+# 3 - Bandwidth limit in KBps (e.g., 1250 for ~10Mb/s)
+# 4 - Delay in ms (e.g., 50 for 50ms)
+function tc_ingress_with_delay() {
+   QUEUE=$1
+   DEV=$2
+   KBPS=$3
+   DELAY=$4
+   BRATE=$[$KBPS * 8] # Convert KBps to kbps
+   MTU=1000
+   LIMIT=$[$MTU * $QUEUE] # Queue length in bytes
+
+   echo "Applying ingress bandwidth + delay on $DEV using ifb1"
+   echo "* Bandwidth: ${BRATE}kbit (${KBPS} KBps)"
+   echo "* Delay: ${DELAY}ms"
+
+   # 1) Load the ifb module and bring up the ifb1 interface
+   $modprobe ifb
+   $ip link set dev ifb1 up
+
+   # 2) Attach ingress qdisc on $DEV, and redirect all traffic to ifb1
+   $tc qdisc add dev $DEV ingress
+   $tc filter add dev $DEV parent ffff: protocol ip u32 match u32 0 0 \
+       flowid 1:1 action mirred egress redirect dev ifb1
+
+   # 3) On ifb1, install TBF as root for bandwidth limiting...
+   $tc qdisc add dev ifb1 root handle 1: tbf rate ${BRATE}kbit \
+       minburst $MTU burst $[$MTU*10] limit $LIMIT
+
+   # 4) ...then attach netem as a child for delay
+   $tc qdisc add dev ifb1 parent 1:1 handle 10: netem delay ${DELAY}ms
+}
+
+# This function removes both ingress bandwidth control and delay
+# INPUT PARAMETER:
+# 1 - Device interface (e.g., eth0)
+function tc_del_ingress_with_delay() {
+   DEV=$1
+   echo "Removing ingress bandwidth + delay on $DEV (ifb1)"
+
+   # 1) Delete root qdisc on ifb1, then bring ifb1 down
+   $tc qdisc del dev ifb1 root 2>/dev/null
+   $ip link set dev ifb1 down
+
+   # 2) Delete the ingress qdisc on $DEV (which removes the redirect)
+   $tc qdisc del dev $DEV ingress 2>/dev/null
+}
+
+# Usage:
+#    tc_bw_delay_both  <QUEUE> <DEV> <KBPS> <DELAY_MS>
+#
+# Example:  tc_bw_delay_both  30  eno1  1250  50
+#   -> This applies:
+#      - egress shaping of ~10Mb/s (1250 KBps) + 50ms on eno1
+#      - ingress shaping of ~10Mb/s (1250 KBps) + 50ms on eno1
+#
+function tc_bw_delay_both() {
+    QUEUE=$1    # Bottleneck buffer size in KB
+    DEV=$2      # Network interface (e.g., eth0, eno1)
+    KBPS=$3     # Bandwidth limit in KB/s
+    DELAY=$4    # Delay in ms
+
+    echo ">>> Applying BOTH ingress + egress shaping on $DEV"
+    echo "    * queue=${QUEUE}KB, bw=${KBPS}KBps, delay=${DELAY}ms"
+
+    # Call existing egress function
+    tc_egress_with_delay "$QUEUE" "$DEV" "$KBPS" "$DELAY"
+
+    # Call existing ingress-with-delay function
+    tc_ingress_with_delay "$QUEUE" "$DEV" "$KBPS" "$DELAY"
+}
+
+# Usage:
+#    tc_del_bw_delay_both  <DEV>
+#
+# Example:  tc_del_bw_delay_both  eno1
+#
+# This removes egress shaping + ingress shaping on the same interface.
+#
+function tc_del_bw_delay_both() {
+    DEV=$1
+    echo ">>> Removing BOTH ingress + egress shaping on $DEV"
+
+    # Remove egress shaping
+    tc_del_egress_with_delay "$DEV"
+
+    # Remove ingress shaping
+    tc_del_ingress_with_delay "$DEV"
+}
+
+
+
 $@
