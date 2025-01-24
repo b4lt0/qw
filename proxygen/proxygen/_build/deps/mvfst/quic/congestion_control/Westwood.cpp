@@ -179,6 +179,7 @@ namespace quic {
             rttWindowStartTime_ = now; // reset measurement interval start
             bytesAckedInCurrentInterval_ = 0; // reset acked bytes count
             VLOG(1) << "Bw estimate " << bandwidthEstimate_ ;
+            VLOG(1) << "CWND bytes  " << cwndBytes_;
 
         }
 
