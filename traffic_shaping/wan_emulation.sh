@@ -42,19 +42,21 @@ function tc_egress_with_delay() {
    DEV=$2
    KBPS=$3
    DELAY=$4
-   BRATE=$[$KBPS * 8] # Convert KBps to kbps
+   LIMIT_PACKETS=$5  # New parameter for packet limit in netem queue
+   BRATE=$((KBPS * 8)) # Convert KBps to kbps
    MTU=1000
-   LIMIT=$[$QUEUE] # Queue length in bytes
+   LIMIT=$((MTU * QUEUE)) # Queue length in bytes
 
    echo "Applying egress bandwidth and delay on $DEV"
    echo "* Bandwidth: ${BRATE}kbit (${KBPS} KBps)"
    echo "* Delay: ${DELAY}ms"
+   echo "* Netem Queue Limit: ${LIMIT_PACKETS} packets"
 
    # Add TBF as root qdisc for bandwidth control
-   $tc qdisc add dev $DEV root handle 1: tbf rate ${BRATE}kbit minburst $MTU burst $[$MTU*10] limit $LIMIT
+   $tc qdisc add dev $DEV root handle 1: tbf rate ${BRATE}kbit minburst $MTU burst $((MTU * 10)) limit $LIMIT
 
-   # Add NetEm as a child qdisc for delay
-   $tc qdisc add dev $DEV parent 1:1 handle 10: netem delay ${DELAY}ms
+   # Add NetEm as a child qdisc for delay with packet limit
+   $tc qdisc add dev $DEV parent 1:1 handle 10: netem delay ${DELAY}ms limit ${LIMIT_PACKETS}
 }
 
 # This function removes both egress bandwidth control and delay
@@ -80,7 +82,7 @@ function tc_ingress()
    BRATE=$[$KBPS*8] #BRATE should be in kbps
    MTU=1000
    
-   LIMIT=$[$QUEUE] #Queue length in bytes
+   LIMIT=$[$MTU*$QUEUE] #Queue length in bytes
 	
 	
    echo "TC SHAPER INGRESS ON $HOSTNAME"
@@ -109,7 +111,7 @@ function tc_ingress_all()
    BRATE=$[$KBPS*8] #BRATE should be in kbps
    MTU=1000
   
-   LIMIT=$[$QUEUE] #Queue length in bytes
+   LIMIT=$[$MTU*$QUEUE] #Queue length in bytes
   
   
    echo "TC SHAPER INGRESS ON $HOSTNAME"
@@ -146,7 +148,7 @@ function tc_egress() {
    KBPS=$3 # kilo bytes per seconds
    BRATE=$[$KBPS*8] #BRATE should be in kbps
    MTU=1000
-   LIMIT=$[$QUEUE] #Queue length in bytes
+   LIMIT=$[$MTU*$QUEUE] #Queue length in bytes
   
    echo "TC SHAPER EGREES ON $HOSTNAME"
    echo "* rate ${BRATE}kbit ($RATE kbyte)"
@@ -216,13 +218,15 @@ function tc_ingress_with_delay() {
    DEV=$2
    KBPS=$3
    DELAY=$4
-   BRATE=$[$KBPS * 8] # Convert KBps to kbps
+   LIMIT_PACKETS=$5  # New parameter for packet limit in netem queue
+   BRATE=$((KBPS * 8)) # Convert KBps to kbps
    MTU=1000
-   LIMIT=$[$QUEUE] # Queue length in bytes
+   LIMIT=$((MTU * QUEUE)) # Queue length in bytes
 
    echo "Applying ingress bandwidth + delay on $DEV using ifb1"
    echo "* Bandwidth: ${BRATE}kbit (${KBPS} KBps)"
    echo "* Delay: ${DELAY}ms"
+   echo "* Netem Queue Limit: ${LIMIT_PACKETS} packets"
 
    # 1) Load the ifb module and bring up the ifb1 interface
    $modprobe ifb
@@ -235,11 +239,12 @@ function tc_ingress_with_delay() {
 
    # 3) On ifb1, install TBF as root for bandwidth limiting...
    $tc qdisc add dev ifb1 root handle 1: tbf rate ${BRATE}kbit \
-       minburst $MTU burst $[$MTU*10] limit $LIMIT
+       minburst $MTU burst $((MTU * 10)) limit $LIMIT
 
-   # 4) ...then attach netem as a child for delay
-   $tc qdisc add dev ifb1 parent 1:1 handle 10: netem delay ${DELAY}ms
+   # 4) ...then attach netem as a child for delay with packet limit
+   $tc qdisc add dev ifb1 parent 1:1 handle 10: netem delay ${DELAY}ms limit ${LIMIT_PACKETS}
 }
+
 
 # This function removes both ingress bandwidth control and delay
 # INPUT PARAMETER:
@@ -265,19 +270,20 @@ function tc_del_ingress_with_delay() {
 #      - ingress shaping of ~10Mb/s (1250 KBps) + 50ms on eno1
 #
 function tc_bw_delay_both() {
-    QUEUE=$1    # Bottleneck buffer size in KB
-    DEV=$2      # Network interface (e.g., eth0, eno1)
-    KBPS=$3     # Bandwidth limit in KB/s
-    DELAY=$4    # Delay in ms
+    QUEUE=$1         # Bottleneck buffer size in KB
+    DEV=$2           # Network interface (e.g., eth0, eno1)
+    KBPS=$3          # Bandwidth limit in KB/s
+    DELAY=$4         # Delay in ms
+    LIMIT_PACKETS=$5 # New parameter for netem queue limit in packets
 
     echo ">>> Applying BOTH ingress + egress shaping on $DEV"
-    echo "    * queue=${QUEUE}KB, bw=${KBPS}KBps, delay=${DELAY}ms"
+    echo "    * queue=${QUEUE}KB, bw=${KBPS}KBps, delay=${DELAY}ms, limit=${LIMIT_PACKETS} packets"
 
-    # Call existing egress function
-    tc_egress_with_delay "$QUEUE" "$DEV" "$KBPS" "$DELAY"
+    # Call modified egress function
+    tc_egress_with_delay "$QUEUE" "$DEV" "$KBPS" "$DELAY" "$LIMIT_PACKETS"
 
-    # Call existing ingress-with-delay function
-    tc_ingress_with_delay "$QUEUE" "$DEV" "$KBPS" "$DELAY"
+    # Call modified ingress function
+    tc_ingress_with_delay "$QUEUE" "$DEV" "$KBPS" "$DELAY" "$LIMIT_PACKETS"
 }
 
 # Usage:
