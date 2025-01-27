@@ -44,7 +44,7 @@ function tc_egress_with_delay() {
    DELAY=$4
    BRATE=$[$KBPS * 8] # Convert KBps to kbps
    MTU=1000
-   LIMIT=$[$MTU * $QUEUE] # Queue length in bytes
+   LIMIT=$[$QUEUE] # Queue length in bytes
 
    echo "Applying egress bandwidth and delay on $DEV"
    echo "* Bandwidth: ${BRATE}kbit (${KBPS} KBps)"
@@ -80,7 +80,7 @@ function tc_ingress()
    BRATE=$[$KBPS*8] #BRATE should be in kbps
    MTU=1000
    
-   LIMIT=$[$MTU*$QUEUE] #Queue length in bytes
+   LIMIT=$[$QUEUE] #Queue length in bytes
 	
 	
    echo "TC SHAPER INGRESS ON $HOSTNAME"
@@ -109,7 +109,7 @@ function tc_ingress_all()
    BRATE=$[$KBPS*8] #BRATE should be in kbps
    MTU=1000
   
-   LIMIT=$[$MTU*$QUEUE] #Queue length in bytes
+   LIMIT=$[$QUEUE] #Queue length in bytes
   
   
    echo "TC SHAPER INGRESS ON $HOSTNAME"
@@ -146,7 +146,7 @@ function tc_egress() {
    KBPS=$3 # kilo bytes per seconds
    BRATE=$[$KBPS*8] #BRATE should be in kbps
    MTU=1000
-   LIMIT=$[$MTU*$QUEUE] #Queue length in bytes
+   LIMIT=$[$QUEUE] #Queue length in bytes
   
    echo "TC SHAPER EGREES ON $HOSTNAME"
    echo "* rate ${BRATE}kbit ($RATE kbyte)"
@@ -218,7 +218,7 @@ function tc_ingress_with_delay() {
    DELAY=$4
    BRATE=$[$KBPS * 8] # Convert KBps to kbps
    MTU=1000
-   LIMIT=$[$MTU * $QUEUE] # Queue length in bytes
+   LIMIT=$[$QUEUE] # Queue length in bytes
 
    echo "Applying ingress bandwidth + delay on $DEV using ifb1"
    echo "* Bandwidth: ${BRATE}kbit (${KBPS} KBps)"
