@@ -165,7 +165,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, plot_bytes_in_flight=False, sa
         ax_rtt.plot(times_rtt, smoothed_rtts, label='Smoothed RTT', linestyle='-.')
         ax_rtt.set_xlabel("Time (s)")
         ax_rtt.set_ylabel("RTT (ms)")
-        ax_rtt.set_title("RTT Metrics Over Time")
+        ax_rtt.set_title("RTT Over Time")
         ax_rtt.legend()
         ax_rtt.grid(True)
 
@@ -180,7 +180,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, plot_bytes_in_flight=False, sa
                 ax_data.axvline(t, color='orange', linestyle='--')
         ax_data.set_xlabel("Time (s)")
         ax_data.set_ylabel("Data (MB)")
-        ax_data.set_title("Data Transfer Metrics Over Time")
+        ax_data.set_title("Data Transferred Over Time")
         ax_data.legend()
         ax_data.grid(True)
 
