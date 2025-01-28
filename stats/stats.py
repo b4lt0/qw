@@ -134,9 +134,6 @@ def normalize_times(times):
     return [(t - start_time) / 1000.0 for t in times]  # Convert to seconds
 
 def plot_all_subplots(rtt_data, cc_data, bw_data, plot_bytes_in_flight=False, save_path=None):
-    """
-    Plot all data in one figure with 4 subplots and save the plot if requested.
-    """
     times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
     (times_cc, data_sent, data_acked, data_lost, cwnd_values, bif_values, ssthresh_list, timeout_times, timeout_counts) = cc_data
     times_bw, bw_estimates = bw_data
@@ -147,6 +144,16 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, plot_bytes_in_flight=False, sa
     times_bw = normalize_times(times_bw)
     timeout_times = normalize_times(timeout_times)
 
+    # Convert units
+    latest_rtts = [rtt / 1000.0 for rtt in latest_rtts]  # microseconds to milliseconds
+    min_rtts = [rtt / 1000.0 for rtt in min_rtts]
+    smoothed_rtts = [rtt / 1000.0 for rtt in smoothed_rtts]
+    cwnd_values = [cwnd / 1024.0 for cwnd in cwnd_values]  # bytes to kilobytes
+    bw_estimates = [bw / (1024.0 * 1024.0) for bw in bw_estimates]  # bytes to megabytes
+    data_sent = [data / (1024.0 * 1024.0) for data in data_sent]  # bytes to megabytes
+    data_acked = [data / (1024.0 * 1024.0) for data in data_acked]
+    data_lost = [data / (1024.0 * 1024.0) for data in data_lost]
+
     fig, axs = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle("QUIC Metrics Overview", fontsize=16)
 
@@ -156,7 +163,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, plot_bytes_in_flight=False, sa
         ax_rtt.plot(times_rtt, latest_rtts, label='Latest RTT', linestyle='-')
         ax_rtt.plot(times_rtt, min_rtts, label='Min RTT', linestyle='--')
         ax_rtt.plot(times_rtt, smoothed_rtts, label='Smoothed RTT', linestyle='-.')
-        ax_rtt.set_xlabel("Time (s)")  # Now in seconds
+        ax_rtt.set_xlabel("Time (s)")
         ax_rtt.set_ylabel("RTT (ms)")
         ax_rtt.set_title("RTT Metrics Over Time")
         ax_rtt.legend()
@@ -165,14 +172,14 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, plot_bytes_in_flight=False, sa
     # Subplot 2: Data Sent / Data Acked / Data Lost
     ax_data = axs[0, 1]
     if times_cc:
-        ax_data.plot(times_cc, data_sent, label="Data Sent (bytes)", color='blue')
-        ax_data.plot(times_cc, data_acked, label="Data Acked (bytes)", color='green')
-        ax_data.plot(times_cc, data_lost, label="Data Lost (bytes)", color='red')
+        ax_data.plot(times_cc, data_sent, label="Data Sent (MB)", color='blue')
+        ax_data.plot(times_cc, data_acked, label="Data Acked (MB)", color='green')
+        ax_data.plot(times_cc, data_lost, label="Data Lost (MB)", color='red')
         if timeout_times:
             for t in timeout_times:
                 ax_data.axvline(t, color='orange', linestyle='--')
-        ax_data.set_xlabel("Time (s)")  # Now in seconds
-        ax_data.set_ylabel("Data (bytes)")
+        ax_data.set_xlabel("Time (s)")
+        ax_data.set_ylabel("Data (MB)")
         ax_data.set_title("Data Transfer Metrics Over Time")
         ax_data.legend()
         ax_data.grid(True)
@@ -180,15 +187,17 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, plot_bytes_in_flight=False, sa
     # Subplot 3: Congestion Control Metrics
     ax_cc = axs[1, 0]
     if times_cc:
-        ax_cc.plot(times_cc, cwnd_values, label='Congestion Window (cwnd)', color='purple')
+        ax_cc.plot(times_cc, cwnd_values, label='Congestion Window (KB)', color='purple')
         if plot_bytes_in_flight:
-            ax_cc.plot(times_cc, bif_values, label='Bytes in Flight', color='brown')
+            bif_values = [bif / 1024.0 for bif in bif_values]  # Convert to KB
+            ax_cc.plot(times_cc, bif_values, label='Bytes in Flight (KB)', color='brown')
         if ssthresh_list:
             ssthresh_times, ssthresh_vals = zip(*ssthresh_list)
-            ssthresh_times = normalize_times(ssthresh_times)  # Normalize ssthresh times
-            ax_cc.step(ssthresh_times, ssthresh_vals, label='SSThresh', color='red', linestyle='--')
-        ax_cc.set_xlabel("Time (s)")  # Now in seconds
-        ax_cc.set_ylabel("Bytes")
+            ssthresh_times = normalize_times(ssthresh_times)
+            ssthresh_vals = [val / 1024.0 for val in ssthresh_vals]  # Convert to KB
+            ax_cc.step(ssthresh_times, ssthresh_vals, label='SSThresh (KB)', color='red', linestyle='--')
+        ax_cc.set_xlabel("Time (s)")
+        ax_cc.set_ylabel("Congestion Window (KB)")
         ax_cc.set_title("Congestion Control Metrics Over Time")
         ax_cc.legend()
         ax_cc.grid(True)
@@ -196,9 +205,9 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, plot_bytes_in_flight=False, sa
     # Subplot 4: Bandwidth Estimate
     ax_bw = axs[1, 1]
     if times_bw:
-        ax_bw.plot(times_bw, bw_estimates, label='Bandwidth Estimate', linestyle='-')
-        ax_bw.set_xlabel("Time (s)")  # Now in seconds
-        ax_bw.set_ylabel("Bandwidth (bytes/s)")
+        ax_bw.plot(times_bw, bw_estimates, label='Bandwidth Estimate (MB/s)', linestyle='-')
+        ax_bw.set_xlabel("Time (s)")
+        ax_bw.set_ylabel("Bandwidth (MB/s)")
         ax_bw.set_title("Bandwidth Estimation Over Time")
         ax_bw.legend()
         ax_bw.grid(True)
@@ -211,6 +220,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, plot_bytes_in_flight=False, sa
         print(f"Plot saved to {save_path}")
 
     plt.show()
+
 
 ###############################################################################
 #                                Main Script                                  #
