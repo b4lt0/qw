@@ -331,10 +331,10 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
     valid_bw = [bw for bw in bw_estimates if bw is not None]
     # Convert bytes/s to MB/s => / (1024*1024)
     if valid_bw:
-        bw_mbs_vals = [bw / (1024.0 * 1024.0) for bw in valid_bw]
-        avg_bw_mbs = sum(bw_mbs_vals) / len(bw_mbs_vals)
+        bw_mbps_vals = [bw / (1024.0 * 1024.0) for bw in valid_bw]
+        avg_bw_mbps = sum(bw_mbps_vals) / len(bw_mbps_vals)
     else:
-        avg_bw_mbs = math.nan
+        avg_bw_mbps = math.nan
 
     # ----------------------------------------------------------------------------
     # 3) Basic time & data from cc_data
@@ -354,9 +354,9 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
     # 4) Throughput (MB/s) = acked_bytes / total_time_s
     # ----------------------------------------------------------------------------
     if total_time_s > 0:
-        throughput_mbs = (final_acked / (1024.0 * 1024.0)) / total_time_s
+        throughput_mbps = (final_acked / (1024.0 * 1024.0)) / total_time_s
     else:
-        throughput_mbs = math.nan
+        throughput_mbps = math.nan
 
     # ----------------------------------------------------------------------------
     # 5) Goodput
@@ -371,9 +371,9 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
         # If in some weird case final_lost > final_acked, clamp to 0:
         if good_bytes < 0:
             good_bytes = 0
-        goodput_mbs = (good_bytes / (1024.0 * 1024.0)) / total_time_s
+        goodput_mbps = (good_bytes / (1024.0 * 1024.0)) / total_time_s
     else:
-        goodput_mbs = 0.0
+        goodput_mbps = 0.0
 
     # ----------------------------------------------------------------------------
     # 6) Loss Rate (%) = (final_lost / final_sent) * 100
@@ -399,10 +399,10 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
     # Return a dictionary for easy printing
     return {
         'avg_rtt_ms': avg_rtt_ms,
-        'avg_bw_mbps': avg_bw_mbs,
+        'avg_bw_mbps': avg_bw_mbps,
         'loss_rate_percent': loss_rate_percent,
-        'throughput_mbps': throughput_mbs,
-        'goodput_mbps': goodput_ratio,
+        'throughput_mbps': throughput_mbps,
+        'goodput_mbps': goodput_mbps,
         'avg_cwnd_kb': avg_cwnd_kb,
         'num_retransmissions': num_retransmissions
     }
