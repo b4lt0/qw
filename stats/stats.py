@@ -451,7 +451,7 @@ def print_summary_metrics(metrics):
     print(f"{'Average CWND:':30s}{avg_cwnd_str:>15s}")
     print(f"{'Average RTT:':30s}{avg_rtt_str:>15s}")
     print(f"{'Loss Rate:':30s}{loss_rate_str:>15s}")
-    print(f"{'Retransmissions:':30s}{retransmissions:>15d}")
+    print(f"{'Retransmissions:':30s}{retransmissions:>15s}")
 
     print("------------------------------------------------------------")
 
