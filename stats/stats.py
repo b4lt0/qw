@@ -439,10 +439,10 @@ def print_summary_metrics(metrics):
     goodput_str      = format_speed(metrics['goodput_mbps'])      # MB/s or KB/s
 
     # Loss Rate and CWND remain as is
-    loss_rate_str    = f"{metrics['loss_rate_percent']:.2f} %"
-    avg_cwnd_str     = f"{metrics['avg_cwnd_kb']:.2f} KB"
-    retransmissions  = f"{metrics['num_retransmissions']} #"
-    avg_rtt_str      = f"{metrics['avg_rtt_ms']:10.2f} ms"
+    loss_rate_str    = f"{metrics['loss_rate_percent']:.2f} %   "
+    avg_cwnd_str     = f"{metrics['avg_cwnd_kb']:.2f} KB  "
+    retransmissions  = f"{metrics['num_retransmissions']} #   "
+    avg_rtt_str      = f"{metrics['avg_rtt_ms']:10.2f} ms  "
 
     # Print them out. We'll do a simple alignment approach:
     print(f"{'Average BW:':30s}{avg_bw_str:>15s}")
