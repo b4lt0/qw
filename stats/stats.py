@@ -366,10 +366,14 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
     # That means "final_lost" is the total retransmitted bytes.
     # So goodput ratio (0..1) = (acked - lost) / sent
     # or we can do it in MB if you prefer. We'll store a ratio here for clarity.
-    if final_sent > 0:
-        goodput_ratio = ((final_acked - final_lost)/ (1024.0 * 1024.0)) / float(final_sent)
+    if total_time_s > 0:
+        good_bytes = final_acked - final_lost
+        # If in some weird case final_lost > final_acked, clamp to 0:
+        if good_bytes < 0:
+            good_bytes = 0
+        goodput_mbs = (good_bytes / (1024.0 * 1024.0)) / total_time_s
     else:
-        goodput_ratio = 0.0
+        goodput_mbs = 0.0
 
     # ----------------------------------------------------------------------------
     # 6) Loss Rate (%) = (final_lost / final_sent) * 100
@@ -395,10 +399,10 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
     # Return a dictionary for easy printing
     return {
         'avg_rtt_ms': avg_rtt_ms,
-        'avg_bw_mbs': avg_bw_mbs,
+        'avg_bw_mbps': avg_bw_mbs,
         'loss_rate_percent': loss_rate_percent,
-        'throughput_mbs': throughput_mbs,
-        'goodput_ratio': goodput_ratio,
+        'throughput_mbps': throughput_mbs,
+        'goodput_mbps': goodput_ratio,
         'avg_cwnd_kb': avg_cwnd_kb,
         'num_retransmissions': num_retransmissions
     }
@@ -411,10 +415,10 @@ def print_summary_metrics(metrics):
     print("------------------------------------------------------------")
     print("Summary of Key Metrics:")
     print("  Average RTT (ms):       {:.2f}".format(metrics['avg_rtt_ms']))
-    print("  Average BW   (MB/s):    {:.2f}".format(metrics['avg_bw_mbs']))
-    print("  Throughput   (MB/s):    {:.2f}".format(metrics['throughput_mbs']))
+    print("  Average BW   (MBps):    {:.2f}".format(metrics['avg_bw_mbs']))
+    print("  Throughput   (MBps):    {:.2f}".format(metrics['throughput_mbs']))
     print("  Loss Rate    (%):       {:.2f}".format(metrics['loss_rate_percent']))
-    print("  Goodput (ratio):        {:.4f}".format(metrics['goodput_ratio']))
+    print("  Goodput (MBps):        {:.4f}".format(metrics['goodput_ratio']))
     print("  Average CWND (KB):      {:.2f}".format(metrics['avg_cwnd_kb']))
     print("  Retransmissions (#):       {}".format(metrics['num_retransmissions']))
     print("------------------------------------------------------------")
