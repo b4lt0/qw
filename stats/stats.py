@@ -433,26 +433,25 @@ def print_summary_metrics(metrics):
     print("------------------------------------------------------------")
     print("Summary of Key Metrics:")
 
-    # For RTT, we'll still print in ms with 2 decimals:
-    print(f"{'Average RTT (ms):':30s}{metrics['avg_rtt_ms']:10.2f}")
-
     # Use the helper for Average BW, Throughput, Goodput
     avg_bw_str       = format_speed(metrics['avg_bw_mbps'])       # MB/s or KB/s
     throughput_str   = format_speed(metrics['throughput_mbps'])   # MB/s or KB/s
     goodput_str      = format_speed(metrics['goodput_mbps'])      # MB/s or KB/s
 
     # Loss Rate and CWND remain as is
-    loss_rate_str    = f"{metrics['loss_rate_percent']:.2f}%"
+    loss_rate_str    = f"{metrics['loss_rate_percent']:.2f} %"
     avg_cwnd_str     = f"{metrics['avg_cwnd_kb']:.2f} KB"
-    retransmissions  = metrics['num_retransmissions']
+    retransmissions  = f"{metrics['num_retransmissions']} #"
+    avg_rtt_str      = f"{metrics['avg_rtt_ms']:10.2f} ms"
 
     # Print them out. We'll do a simple alignment approach:
     print(f"{'Average BW:':30s}{avg_bw_str:>15s}")
+    print(f"{'Average RTT:':30s}{avg_rtt_str:>15s}")
     print(f"{'Throughput:':30s}{throughput_str:>15s}")
     print(f"{'Goodput:':30s}{goodput_str:>15s}")
     print(f"{'Loss Rate:':30s}{loss_rate_str:>15s}")
     print(f"{'Average CWND:':30s}{avg_cwnd_str:>15s}")
-    print(f"{'Retransmissions (#):':30s}{retransmissions:>15d}")
+    print(f"{'Retransmissions:':30s}{retransmissions:>15d}")
 
     print("------------------------------------------------------------")
 
