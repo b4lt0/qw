@@ -92,21 +92,34 @@ def extract_congestion_metrics(qlog_data):
             ssthresh_list.append((event_time_us, ssthresh))
 
         # Data Sent
-        if event_type == 'packet_sent':
+        if category == 'transport' and event_type == 'packet_sent':
+            # increment data_sent
             packet_size = event_data.get('header', {}).get('packet_size', 0)
             cumulative_data_sent += packet_size
 
+            # also parse ack frames if present
+            frames = event_data.get('frames', [])
+            for f in frames:
+                if f.get('frame_type') == 'ack':
+                    acked_ranges = f.get('acked_ranges', [])
+                    acked_size = sum((end - start + 1) for start, end in acked_ranges)
+                    cumulative_data_acked += acked_size
+
         # Data Acked
         elif event_type == 'packet_received':
-            acked_ranges = event_data.get('acked_ranges', [])
-            acked_size = sum((end - start + 1) for start, end in acked_ranges)
-            cumulative_data_acked += acked_size
+            frames = event_data.get('frames', [])
+            for frame in frames:
+                if frame.get('frame_type') == 'ack':
+                    acked_ranges = frame.get('acked_ranges', [])
+                    acked_size = sum((end - start + 1) for start, end in acked_ranges)
+                    cumulative_data_acked += acked_size
 
-        # Data Lost => increment counters
-        elif event_type == 'packet_lost':
-            lost_size = event_data.get('header', {}).get('packet_size', 0)
+        # Data Lost 
+        elif category == 'loss' and event_type == 'packets_lost':
+            lost_size = event_data.get('lost_bytes', 0)
+            lost_packets = event_data.get('lost_packets', 0)
             cumulative_data_lost += lost_size
-            lost_event_count += 1
+            lost_event_count += lost_packets
 
         # Congestion control updates
         if event_type in ['metric_update', 'congestion_metric_update']:
@@ -403,7 +416,7 @@ def print_summary_metrics(metrics):
     print("  Loss Rate    (%):       {:.2f}".format(metrics['loss_rate_percent']))
     print("  Goodput (ratio):        {:.4f}".format(metrics['goodput_ratio']))
     print("  Average CWND (KB):      {:.2f}".format(metrics['avg_cwnd_kb']))
-    print("  #Retransmissions:       {}".format(metrics['num_retransmissions']))
+    print("  Retransmissions (#):       {}".format(metrics['num_retransmissions']))
     print("------------------------------------------------------------")
 
 
