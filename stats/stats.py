@@ -414,13 +414,21 @@ def print_summary_metrics(metrics):
     """
     print("------------------------------------------------------------")
     print("Summary of Key Metrics:")
-    print("  Average RTT (ms):       {:.2f}".format(metrics['avg_rtt_ms']))
-    print("  Average BW   (MBps):    {:.2f}".format(metrics['avg_bw_mbps']))
-    print("  Throughput   (MBps):    {:.2f}".format(metrics['throughput_mbps']))
-    print("  Loss Rate    (%):       {:.2f}".format(metrics['loss_rate_percent']))
-    print("  Goodput (MBps):        {:.4f}".format(metrics['goodput_mbps']))
-    print("  Average CWND (KB):      {:.2f}".format(metrics['avg_cwnd_kb']))
-    print("  Retransmissions (#):       {}".format(metrics['num_retransmissions']))
+
+    # Each line below has a fixed label width (30 chars), 
+    # then the numeric value is right-aligned in a 10-char field with 2 decimals.
+
+    print(f"{'Average RTT (ms):':30s}{metrics['avg_rtt_ms']:10.2f}")
+    print(f"{'Average BW (MBps):':30s}{metrics['avg_bw_mbps']:10.2f}")
+    print(f"{'Throughput (MBps):':30s}{metrics['throughput_mbps']:10.2f}")
+    print(f"{'Loss Rate (%):':30s}{metrics['loss_rate_percent']:10.2f}")
+    print(f"{'Goodput (MBps):':30s}{metrics['goodput_mbps']:10.2f}")
+    print(f"{'Average CWND (KB):':30s}{metrics['avg_cwnd_kb']:10.2f}")
+
+    # For retransmissions (an integer), we can either keep 2 decimals or show as integer:
+    # Using ":10d" to display it as a right-aligned integer in a 10-char field.
+    print(f"{'Retransmissions (#):':30s}{metrics['num_retransmissions']:10d}")
+
     print("------------------------------------------------------------")
 
 
