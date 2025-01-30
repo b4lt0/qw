@@ -407,27 +407,52 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
         'num_retransmissions': num_retransmissions
     }
 
+def format_speed(mbps_value):
+    """
+    Given a speed in MB/s (float), return a string:
+      - "<value> KB/s" if < 1 MB/s
+      - "<value> MB/s" if >= 1 MB/s
+    with two decimals of precision.
+    """
+    if math.isnan(mbps_value):
+        return "NaN"
+
+    if mbps_value < 1.0:
+        # Convert MB/s to KB/s => multiply by 1024
+        kbps = mbps_value * 1024.0
+        return f"{kbps:.2f} KB/s"
+    else:
+        return f"{mbps_value:.2f} MB/s"
+
 
 def print_summary_metrics(metrics):
     """
-    Pretty-print the summary metrics dictionary.
+    Pretty-print the summary metrics dictionary with bandwidth/throughput/goodput
+    displayed in KB/s if < 1 MB/s, otherwise in MB/s.
     """
     print("------------------------------------------------------------")
     print("Summary of Key Metrics:")
 
-    # Each line below has a fixed label width (30 chars), 
-    # then the numeric value is right-aligned in a 10-char field with 2 decimals.
-
+    # For RTT, we'll still print in ms with 2 decimals:
     print(f"{'Average RTT (ms):':30s}{metrics['avg_rtt_ms']:10.2f}")
-    print(f"{'Average BW (MBps):':30s}{metrics['avg_bw_mbps']:10.2f}")
-    print(f"{'Throughput (MBps):':30s}{metrics['throughput_mbps']:10.2f}")
-    print(f"{'Loss Rate (%):':30s}{metrics['loss_rate_percent']:10.2f}")
-    print(f"{'Goodput (MBps):':30s}{metrics['goodput_mbps']:10.2f}")
-    print(f"{'Average CWND (KB):':30s}{metrics['avg_cwnd_kb']:10.2f}")
 
-    # For retransmissions (an integer), we can either keep 2 decimals or show as integer:
-    # Using ":10d" to display it as a right-aligned integer in a 10-char field.
-    print(f"{'Retransmissions (#):':30s}{metrics['num_retransmissions']:10d}")
+    # Use the helper for Average BW, Throughput, Goodput
+    avg_bw_str       = format_speed(metrics['avg_bw_mbps'])       # MB/s or KB/s
+    throughput_str   = format_speed(metrics['throughput_mbps'])   # MB/s or KB/s
+    goodput_str      = format_speed(metrics['goodput_mbps'])      # MB/s or KB/s
+
+    # Loss Rate and CWND remain as is
+    loss_rate_str    = f"{metrics['loss_rate_percent']:.2f}%"
+    avg_cwnd_str     = f"{metrics['avg_cwnd_kb']:.2f} KB"
+    retransmissions  = metrics['num_retransmissions']
+
+    # Print them out. We'll do a simple alignment approach:
+    print(f"{'Average BW:':30s}{avg_bw_str:>15s}")
+    print(f"{'Throughput:':30s}{throughput_str:>15s}")
+    print(f"{'Goodput:':30s}{goodput_str:>15s}")
+    print(f"{'Loss Rate:':30s}{loss_rate_str:>15s}")
+    print(f"{'Average CWND:':30s}{avg_cwnd_str:>15s}")
+    print(f"{'Retransmissions (#):':30s}{retransmissions:>15d}")
 
     print("------------------------------------------------------------")
 
