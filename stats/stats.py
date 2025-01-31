@@ -295,21 +295,16 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
     """
     Compute summary metrics (average RTT, average BW, throughput, goodput,
     loss rate, average cwnd, number of retransmissions) from the extracted data.
-
-    Also compute standard deviations where applicable (RTT, BW, CWND).
     
-    NOW also compute standard dev for throughput & goodput by collecting
-    per-interval samples.
+    Also compute standard deviations where applicable (RTT, BW, CWND).
 
     Returns a dict with keys:
        'avg_rtt_ms', 'std_rtt_ms',
        'avg_bw_mbps', 'std_bw_mbps',
-       'avg_throughput_mbps', 'std_throughput_mbps',
-       'avg_goodput_mbps', 'std_goodput_mbps',
+       'throughput_mbps', 'goodput_mbps',
        'loss_rate_percent',
        'avg_cwnd_kb', 'std_cwnd_kb',
        'num_retransmissions'
-       -- plus the final single-value throughput/goodput if you want them.
     """
     times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
     (times_cc, data_sent, data_acked, data_lost,
@@ -322,7 +317,9 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
     ############################################################################
     valid_smoothed = [r for r in smoothed_rtts if r is not None]
     if valid_smoothed:
+        # Mean
         avg_rtt_us = statistics.mean(valid_smoothed)
+        # Std dev
         std_rtt_us = statistics.stdev(valid_smoothed) if len(valid_smoothed) > 1 else 0.0
     else:
         valid_latest = [r for r in latest_rtts if r is not None]
@@ -349,15 +346,10 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
         std_bw_mbps = math.nan
 
     ############################################################################
-    # 3) Time & Data
+    # 3) Time & Data for throughput/goodput
     ############################################################################
-    # We'll do two things:
-    #   (1) Single final throughput/goodput if you still want them.
-    #   (2) Per-interval samples for throughput & goodput => we can do mean/std.
-    
-    # First, compute single final-based throughput/goodput for reference
     if len(times_cc) > 1:
-        total_time_s = (times_cc[-1] - times_cc[0]) / 1e6
+        total_time_s = (times_cc[-1] - times_cc[0]) / 1_000_000.0
     else:
         total_time_s = 0.0
 
@@ -365,61 +357,28 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
     final_acked = data_acked[-1] if data_acked else 0
     final_lost = data_lost[-1] if data_lost else 0
 
+    ############################################################################
+    # 4) Throughput (MB/s) = acked_bytes / total_time_s
+    #    (Only a single final measure => no std dev here)
+    ############################################################################
     if total_time_s > 0:
-        final_throughput_mbps = (final_acked / (1024.0 * 1024.0)) / total_time_s
+        throughput_mbps = (final_acked / (1024.0 * 1024.0)) / total_time_s
+    else:
+        throughput_mbps = math.nan
+
+    ############################################################################
+    # 5) Goodput (MB/s), similarly only one final measure
+    ############################################################################
+    if total_time_s > 0:
         good_bytes = final_acked - final_lost
         if good_bytes < 0:
             good_bytes = 0
-        final_goodput_mbps = (good_bytes / (1024.0 * 1024.0)) / total_time_s
+        goodput_mbps = (good_bytes / (1024.0 * 1024.0)) / total_time_s
     else:
-        final_throughput_mbps = math.nan
-        final_goodput_mbps = math.nan
-
-    # (2) Build per-interval throughput & goodput:
-    throughput_samples = []
-    goodput_samples = []
-    for i in range(1, len(data_acked)):
-        dt_s = (times_cc[i] - times_cc[i-1]) / 1e6
-        if dt_s > 0:
-            # Delta in acked bytes
-            delta_acked = data_acked[i] - data_acked[i-1]
-            # Delta in lost bytes
-            delta_lost = data_lost[i] - data_lost[i-1]
-
-            # Throughput MB/s in this interval
-            thr_sample_mbps = (delta_acked / (1024.0 * 1024.0)) / dt_s
-            throughput_samples.append(thr_sample_mbps)
-
-            # Goodput = (acked - lost) / time
-            good_bytes_interval = delta_acked - delta_lost
-            if good_bytes_interval < 0:
-                good_bytes_interval = 0
-            goodput_sample_mbps = (good_bytes_interval / (1024.0 * 1024.0)) / dt_s
-            goodput_samples.append(goodput_sample_mbps)
-
-    if len(throughput_samples) > 1:
-        avg_throughput_mbps = statistics.mean(throughput_samples)
-        std_throughput_mbps = statistics.stdev(throughput_samples)
-    elif len(throughput_samples) == 1:
-        # If only 1 sample, stdev is zero or NaN, your choice:
-        avg_throughput_mbps = throughput_samples[0]
-        std_throughput_mbps = 0.0
-    else:
-        avg_throughput_mbps = math.nan
-        std_throughput_mbps = math.nan
-
-    if len(goodput_samples) > 1:
-        avg_goodput_mbps = statistics.mean(goodput_samples)
-        std_goodput_mbps = statistics.stdev(goodput_samples)
-    elif len(goodput_samples) == 1:
-        avg_goodput_mbps = goodput_samples[0]
-        std_goodput_mbps = 0.0
-    else:
-        avg_goodput_mbps = math.nan
-        std_goodput_mbps = math.nan
+        goodput_mbps = 0.0
 
     ############################################################################
-    # 4) Loss Rate (%)
+    # 6) Loss Rate (%)
     ############################################################################
     if final_sent > 0:
         loss_rate_percent = (final_lost / float(final_sent)) * 100.0
@@ -427,7 +386,7 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
         loss_rate_percent = 0.0
 
     ############################################################################
-    # 5) CWND (KB)
+    # 7) Congestion Window (KB)
     ############################################################################
     if cwnd_values:
         cwnd_kb_values = [c / 1024.0 for c in cwnd_values]
@@ -440,29 +399,15 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
     num_retransmissions = lost_event_count
 
     return {
-        # RTT
         'avg_rtt_ms': avg_rtt_ms,
-        'std_rtt_ms': std_rtt_ms,
-
-        # Bandwidth
+        'std_rtt_ms': std_rtt_ms,                
         'avg_bw_mbps': avg_bw_mbps,
-        'std_bw_mbps': std_bw_mbps,
-
-        # Interval-based throughput/goodput
-        'avg_throughput_mbps': avg_throughput_mbps,
-        'std_throughput_mbps': std_throughput_mbps,
-        'avg_goodput_mbps': avg_goodput_mbps,
-        'std_goodput_mbps': std_goodput_mbps,
-
-        # Single final measurement (if you still want them)
-        'final_throughput_mbps': final_throughput_mbps,
-        'final_goodput_mbps': final_goodput_mbps,
-
-        # Loss rate, CWND
+        'std_bw_mbps': std_bw_mbps,              
+        'throughput_mbps': throughput_mbps,
+        'goodput_mbps': goodput_mbps,
         'loss_rate_percent': loss_rate_percent,
         'avg_cwnd_kb': avg_cwnd_kb,
-        'std_cwnd_kb': std_cwnd_kb,
-
+        'std_cwnd_kb': std_cwnd_kb,             
         'num_retransmissions': num_retransmissions
     }
 
@@ -487,74 +432,57 @@ def print_summary_metrics(metrics):
     """
     Pretty-print the summary metrics dictionary with bandwidth/throughput/goodput
     displayed in KB/s if < 1 MB/s, otherwise in MB/s. Also prints standard
-    deviations where available, including per-interval throughput/goodput.
+    deviations where available.
     """
     print("------------------------------------------------------------")
     print("Summary of Key Metrics:")
 
-    ###########################################################################
-    # Bandwidth
-    ###########################################################################
-    avg_bw_str   = format_speed(metrics['avg_bw_mbps'])
-    std_bw_str   = format_speed(metrics['std_bw_mbps']) if not math.isnan(metrics['std_bw_mbps']) else "NaN"
+    # Averages (for BW, throughput, goodput) in MB/s or KB/s
+    avg_bw_str       = format_speed(metrics['avg_bw_mbps'])
+    throughput_str   = format_speed(metrics['throughput_mbps'])
+    goodput_str      = format_speed(metrics['goodput_mbps'])
 
-    ###########################################################################
-    # Throughput (interval-based)
-    ###########################################################################
-    avg_thr_str = format_speed(metrics['avg_throughput_mbps'])
-    if not math.isnan(metrics['std_throughput_mbps']):
-        std_thr_str = format_speed(metrics['std_throughput_mbps'])
+    # Standard deviations for BW, RTT, CWND
+    # We'll just keep them in the same units as the averages:
+    #   BW: MB/s (or KB/s), RTT: ms, CWND: KB
+    #   If there's a good reason to convert, do so accordingly.
+    if not math.isnan(metrics['std_bw_mbps']):
+        std_bw_str = format_speed(metrics['std_bw_mbps'])
     else:
-        std_thr_str = "NaN"
+        std_bw_str = "NaN"
 
-    ###########################################################################
-    # Goodput (interval-based)
-    ###########################################################################
-    avg_good_str = format_speed(metrics['avg_goodput_mbps'])
-    if not math.isnan(metrics['std_goodput_mbps']):
-        std_good_str = format_speed(metrics['std_goodput_mbps'])
+    if not math.isnan(metrics['std_rtt_ms']):
+        std_rtt_str = f"{metrics['std_rtt_ms']:.2f} ms"
     else:
-        std_good_str = "NaN"
+        std_rtt_str = "NaN"
 
-    ###########################################################################
-    # Single final throughput/goodput
-    ###########################################################################
-    final_thr_str  = format_speed(metrics['final_throughput_mbps'])
-    final_good_str = format_speed(metrics['final_goodput_mbps'])
+    if not math.isnan(metrics['std_cwnd_kb']):
+        std_cwnd_str = f"{metrics['std_cwnd_kb']:.2f} KB"
+    else:
+        std_cwnd_str = "NaN"
 
-    ###########################################################################
-    # RTT
-    ###########################################################################
-    avg_rtt_str  = f"{metrics['avg_rtt_ms']:.2f} ms" if not math.isnan(metrics['avg_rtt_ms']) else "NaN"
-    std_rtt_str  = f"{metrics['std_rtt_ms']:.2f} ms" if not math.isnan(metrics['std_rtt_ms']) else "NaN"
+    # Others
+    loss_rate_str    = f"{metrics['loss_rate_percent']:.2f} %"
+    avg_cwnd_str     = f"{metrics['avg_cwnd_kb']:.2f} KB"
+    retransmissions  = f"{metrics['num_retransmissions']} #"
+    avg_rtt_str      = f"{metrics['avg_rtt_ms']:.2f} ms"
 
-    ###########################################################################
-    # CWND
-    ###########################################################################
-    avg_cwnd_str  = f"{metrics['avg_cwnd_kb']:.2f} KB" if not math.isnan(metrics['avg_cwnd_kb']) else "NaN"
-    std_cwnd_str  = f"{metrics['std_cwnd_kb']:.2f} KB" if not math.isnan(metrics['std_cwnd_kb']) else "NaN"
+    # Print them out
+    print(f"{'Average BW:':30s}{avg_bw_str:>15s}")
+    print(f"{'Std Dev BW:':30s}{std_bw_str:>15s}")              
 
-    ###########################################################################
-    # Loss rate & Retrans
-    ###########################################################################
-    loss_rate_str = f"{metrics['loss_rate_percent']:.2f} %"
-    retrans_str   = f"{metrics['num_retransmissions']} #"
+    print(f"{'Throughput:':30s}{throughput_str:>15s}")
+    print(f"{'Goodput:':30s}{goodput_str:>15s}")
 
-    ###########################################################################
-    # Print them
-    ###########################################################################
-    print(f"{'Avg BW:':30s}{avg_bw_str:>15s}   (Std Dev: {std_bw_str})")
-    print(f"{'Avg Thpt (interval):':30s}{avg_thr_str:>15s}   (Std Dev: {std_thr_str})")
-    print(f"{'Avg Goodpt(interval):':30s}{avg_good_str:>15s}  (Std Dev: {std_good_str})")
+    print(f"{'Average CWND:':30s}{avg_cwnd_str:>15s}")
+    print(f"{'Std Dev CWND:':30s}{std_cwnd_str:>15s}")          
 
-    print(f"{'Final Throughput:':30s}{final_thr_str:>15s}")
-    print(f"{'Final Goodput:':30s}{final_good_str:>15s}")
-
-    print(f"{'Avg CWND:':30s}{avg_cwnd_str:>15s}   (Std Dev: {std_cwnd_str})")
-    print(f"{'Avg RTT:':30s}{avg_rtt_str:>15s}     (Std Dev: {std_rtt_str})")
+    print(f"{'Average RTT:':30s}{avg_rtt_str:>15s}")
+    print(f"{'Std Dev RTT:':30s}{std_rtt_str:>15s}")            
 
     print(f"{'Loss Rate:':30s}{loss_rate_str:>15s}")
-    print(f"{'Retransmissions:':30s}{retrans_str:>15s}")
+    print(f"{'Retransmissions:':30s}{retransmissions:>15s}")
+
     print("------------------------------------------------------------")
 
 
@@ -584,7 +512,7 @@ def main():
     cc_data = extract_congestion_metrics(qlog_data)
     bw_data = extract_bandwidth_metrics(qlog_data)
 
-    # Compute summary stats (including std dev, and now interval-based throughput/goodput)
+    # Compute summary stats (including std dev)
     metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
 
     # Print summary
