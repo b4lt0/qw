@@ -124,7 +124,7 @@ def extract_congestion_metrics(qlog_data):
         if event_type in ['metric_update', 'congestion_metric_update']:
             cwnd = event_data.get('current_cwnd', None)
             bytes_in_flight = event_data.get('bytes_in_flight', None)
-            if cwnd is not None and bytes_in_flight is not None:
+            if cwnd is not None and bytes_in_flight is not None and cwnd<1e5:
                 times_cc.append(event_time_us)
                 data_sent.append(cumulative_data_sent)
                 data_acked.append(cumulative_data_acked)
