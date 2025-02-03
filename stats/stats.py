@@ -264,7 +264,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
         ax_cc.step(ssthresh_times_s, ssthresh_values_kb, label='SSThresh (KB)', color='red', linestyle='--')
     ax_cc.set_title("Congestion Control Over Time")
     ax_cc.set_xlabel("Time (s)")
-    ax_cc.set_ylabel("CWND / BIF (KB)")
+    ax_cc.set_ylabel("CWND (KB)")
     ax_cc.legend()
     ax_cc.grid(True)
 
