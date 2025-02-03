@@ -43,6 +43,7 @@ function tc_egress_with_delay() {
    DELAY=$4
    LIMIT_PACKETS=$5
    LOSS=$6
+   BDP_BYTES=$7
    BRATE=$((KBPS * 8)) # Convert KBps to kbps
    MTU=1000
    LIMIT=$((MTU * QUEUE)) # Queue length in bytes
@@ -55,7 +56,7 @@ function tc_egress_with_delay() {
 
    # Add TBF as root qdisc for bandwidth control
    $tc qdisc add dev $DEV root handle 1: tbf rate ${BRATE}kbit \
-       minburst $MTU burst $((MTU * 10)) limit $LIMIT
+       minburst $MTU burst $((BDP_BYTES * 10)) limit $LIMIT
 
    # Add NetEm as a child qdisc for delay, loss, with packet limit
    $tc qdisc add dev $DEV parent 1:1 handle 10: netem \
@@ -223,6 +224,7 @@ function tc_ingress_with_delay() {
    DELAY=$4
    LIMIT_PACKETS=$5
    LOSS=$6
+   BDP_BYTES=$7
    BRATE=$((KBPS * 8)) # Convert KBps to kbps
    MTU=1000
    LIMIT=$((MTU * QUEUE)) # Queue length in bytes
@@ -244,7 +246,7 @@ function tc_ingress_with_delay() {
 
    # 3) On ifb1, install TBF as root for bandwidth limiting
    $tc qdisc add dev ifb1 root handle 1: tbf rate ${BRATE}kbit \
-       minburst $MTU burst $((MTU * 10)) limit $LIMIT
+       minburst $MTU burst $((BDP_BYTES * 10)) limit $LIMIT
 
    # 4) Attach netem as a child for delay + loss + queue limit
    $tc qdisc add dev ifb1 parent 1:1 handle 10: netem \
@@ -308,7 +310,7 @@ function tc_bw_delay_both() {
         QUEUE_KB=1
     fi
 
-    # 4) Decide limit in packets by dividing BDP by average packet size (~1500 bytes)
+    # 4) Decide limit in packets by dividing BDP by average packet size (1252 bytes)
     local AVG_PKT=1250
     local LIMIT_PKTS=$(( (BDP_BYTES * FACTOR) / AVG_PKT ))
     if [ "$LIMIT_PKTS" -lt 10 ]; then
@@ -318,10 +320,10 @@ function tc_bw_delay_both() {
     echo "    * auto-calculated queue ~${QUEUE_KB}KB, limit ~${LIMIT_PKTS} pkts"
 
     # Apply egress shaping
-    tc_egress_with_delay "$QUEUE_KB" "$DEV" "$KBPS" "$DELAY_MS" "$LIMIT_PKTS" "$LOSS"
+    tc_egress_with_delay "$QUEUE_KB" "$DEV" "$KBPS" "$DELAY_MS" "$LIMIT_PKTS" "$LOSS" "$BDP_BYTES"
 
     # Apply ingress shaping
-    tc_ingress_with_delay "$QUEUE_KB" "$DEV" "$KBPS" "$DELAY_MS" "$LIMIT_PKTS" "$LOSS"
+    tc_ingress_with_delay "$QUEUE_KB" "$DEV" "$KBPS" "$DELAY_MS" "$LIMIT_PKTS" "$LOSS" "$BDP_BYTES"
 }
 
 
