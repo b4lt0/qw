@@ -89,7 +89,7 @@ def extract_congestion_metrics(qlog_data):
 
         # ssthresh
         ssthresh = event_data.get('ssthresh', None)
-        if ssthresh is not None and ssthresh<1e5:
+        if ssthresh is not None: # and ssthresh<1e5:
             ssthresh_list.append((event_time_us, ssthresh))
 
         # Data Sent
@@ -124,7 +124,7 @@ def extract_congestion_metrics(qlog_data):
         if event_type in ['metric_update', 'congestion_metric_update']:
             cwnd = event_data.get('current_cwnd', None)
             bytes_in_flight = event_data.get('bytes_in_flight', None)
-            if cwnd is not None and bytes_in_flight is not None and cwnd<1e6:
+            if cwnd is not None and bytes_in_flight is not None:# and cwnd<1e6:
                 times_cc.append(event_time_us)
                 data_sent.append(cumulative_data_sent)
                 data_acked.append(cumulative_data_acked)
