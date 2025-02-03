@@ -187,6 +187,12 @@ namespace quic {
         if (cwndBytes_ < ssthresh_) {
             // in slow start increase cwnd by the number of bytes acked
             addAndCheckOverflow(cwndBytes_, ackedBytes); // slow start: cwnd += ackedBytes
+            cwndBytes_ = boundedCwnd(
+                cwndBytes_,
+                quicConnectionState_.udpSendPacketLen,
+                quicConnectionState_.transportSettings.maxCwndInMss,
+                quicConnectionState_.transportSettings.minCwndInMss);
+
         } else {
             // in congestion avoidance increase by the number of bytes acked,
             // but scaled relative to the current cwnd
@@ -194,6 +200,11 @@ namespace quic {
                                        ackedBytes) /
                                       cwndBytes_;
             addAndCheckOverflow(cwndBytes_, additionFactor); // cwnd += (packet_size * ackedBytes / cwnd)
+            cwndBytes_ = boundedCwnd(
+                cwndBytes_,
+                quicConnectionState_.udpSendPacketLen,
+                quicConnectionState_.transportSettings.maxCwndInMss,
+                quicConnectionState_.transportSettings.minCwndInMss);
         }
     }
 
@@ -238,6 +249,11 @@ namespace quic {
         
             // set cwnd to current ssthresh
             cwndBytes_ = ssthresh_;
+            cwndBytes_ = boundedCwnd(
+                cwndBytes_,
+                quicConnectionState_.udpSendPacketLen,
+                quicConnectionState_.transportSettings.maxCwndInMss,
+                quicConnectionState_.transportSettings.minCwndInMss);
             // LOG
             VLOG(10) << __func__ << " exit slow start, ssthresh=" << ssthresh_
                      << " packetNum=" << *loss.largestLostPacketNum
@@ -270,6 +286,11 @@ namespace quic {
             }
             // reset congestion window to minimum value
             cwndBytes_ = quicConnectionState_.transportSettings.minCwndInMss * quicConnectionState_.udpSendPacketLen;
+            cwndBytes_ = boundedCwnd(
+                cwndBytes_,
+                quicConnectionState_.udpSendPacketLen,
+                quicConnectionState_.transportSettings.maxCwndInMss,
+                quicConnectionState_.transportSettings.minCwndInMss);
         }
     }
 
