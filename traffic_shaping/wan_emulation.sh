@@ -266,35 +266,64 @@ function tc_del_ingress_with_delay() {
    $tc qdisc del dev $DEV ingress 2>/dev/null
 }
 
+
 # Usage:
-#    tc_bw_delay_both  <QUEUE> <DEV> <KBPS> <DELAY_MS> <LIMIT_PACKETS> <LOSS_PERCENT>
+#   tc_bw_delay_both <DEV> <KBPS> <DELAY_MS> <LOSS_PERCENT>
 #
-# Example:  
-#    tc_bw_delay_both 30 eno1 1250 50 1000 0.5
-#      -> egress + ingress shaping
-#         - 30KB buffer
-#         - ~10Mb/s limit
-#         - 50ms delay
-#         - netem queue limit of 1000 packets
-#         - 0.5% packet loss
+# Where:
+#   DEV       = network interface (e.g., eno1)
+#   KBPS      = bandwidth in kilobytes per second (1 KB = 1024 bytes)
+#   DELAY_MS  = one-way delay in milliseconds
+#   LOSS      = percentage of packet loss (e.g., 0.5)
 #
+# Example usage:
+#   tc_bw_delay_both eno1 10000 50 0.5
+#    -> egress + ingress shaping
+#       - ~10,000 KBps limit (≈ 10 MB/s)
+#       - 50 ms one-way delay
+#       - 0.5% packet loss
+#       - auto-calculated queue & limit
 function tc_bw_delay_both() {
-    QUEUE=$1          # Bottleneck buffer size in KB
-    DEV=$2            # Network interface (e.g., eth0, eno1)
-    KBPS=$3           # Bandwidth limit in KB/s
-    DELAY=$4          # Delay in ms
-    LIMIT_PACKETS=$5  # Netem queue limit in packets
-    LOSS=$6           # Packet loss percentage
+    local DEV=$1
+    local KBPS=$2       # kilobytes per second
+    local DELAY_MS=$3
+    local LOSS=$4
 
     echo ">>> Applying BOTH ingress + egress shaping on $DEV"
-    echo "    * queue=${QUEUE}KB, bw=${KBPS}KBps, delay=${DELAY}ms, limit=${LIMIT_PACKETS} packets, loss=${LOSS}%"
+    echo "    * target rate=${KBPS}KBps, delay=${DELAY_MS}ms, loss=${LOSS}%"
 
-    # Call modified egress function
-    tc_egress_with_delay "$QUEUE" "$DEV" "$KBPS" "$DELAY" "$LIMIT_PACKETS" "$LOSS"
+    # 1) Convert KBPS (kilobytes/s) to bytes/s
+    #    For 1 KB = 1024 bytes:
+    local BYTES_PER_SEC=$(( KBPS * 1024 ))
 
-    # Call modified ingress function
-    tc_ingress_with_delay "$QUEUE" "$DEV" "$KBPS" "$DELAY" "$LIMIT_PACKETS" "$LOSS"
+    # 2) Calculate Bandwidth-Delay Product (BDP) in bytes
+    #    BDP = throughput (bytes/s) * delay (seconds)
+    #    Here we assume one-way delay, not round-trip.
+    local BDP_BYTES=$(( BYTES_PER_SEC * DELAY_MS / 1000 ))
+
+    # 3) Decide a queue size in KB (multiply BDP by a safety factor)
+    local FACTOR=2
+    local QUEUE_KB=$(( (BDP_BYTES * FACTOR) / 1024 ))
+    if [ "$QUEUE_KB" -lt 1 ]; then
+        QUEUE_KB=1
+    fi
+
+    # 4) Decide limit in packets by dividing BDP by average packet size (~1500 bytes)
+    local AVG_PKT=1250
+    local LIMIT_PKTS=$(( (BDP_BYTES * FACTOR) / AVG_PKT ))
+    if [ "$LIMIT_PKTS" -lt 10 ]; then
+        LIMIT_PKTS=10
+    fi
+
+    echo "    * auto-calculated queue ~${QUEUE_KB}KB, limit ~${LIMIT_PKTS} pkts"
+
+    # Apply egress shaping
+    tc_egress_with_delay "$QUEUE_KB" "$DEV" "$KBPS" "$DELAY_MS" "$LIMIT_PKTS" "$LOSS"
+
+    # Apply ingress shaping
+    tc_ingress_with_delay "$QUEUE_KB" "$DEV" "$KBPS" "$DELAY_MS" "$LIMIT_PKTS" "$LOSS"
 }
+
 
 # Usage:
 #    tc_del_bw_delay_both  <DEV>
