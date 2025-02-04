@@ -97,12 +97,12 @@ def extract_congestion_metrics(qlog_data):
             packet_size = event_data.get('header', {}).get('packet_size', 0)
             cumulative_data_sent += packet_size
 
-            frames = event_data.get('frames', [])
-            for f in frames:
-                if f.get('frame_type') == 'ack':
-                    acked_ranges = f.get('acked_ranges', [])
-                    acked_size = sum((end - start + 1) for start, end in acked_ranges)
-                    cumulative_data_acked += acked_size
+            # frames = event_data.get('frames', [])
+            # for f in frames:
+            #     if f.get('frame_type') == 'ack':
+            #         acked_ranges = f.get('acked_ranges', [])
+            #         acked_size = sum((end - start + 1) for start, end in acked_ranges)
+            #         cumulative_data_acked += acked_size
 
         # Data Acked
         elif event_type == 'packet_received':
