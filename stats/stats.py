@@ -68,7 +68,10 @@ def extract_congestion_metrics(qlog_data):
     cumulative_data_acked = 0
     cumulative_data_lost = 0
 
-    lost_event_count = 0 
+    lost_event_count = 0
+
+    # 1) Dictionary to track packet_number -> packet_size
+    sent_packet_sizes = {}
 
     events = qlog_data['traces'][0]['events']
     for event in events:
@@ -89,42 +92,47 @@ def extract_congestion_metrics(qlog_data):
 
         # ssthresh
         ssthresh = event_data.get('ssthresh', None)
-        if ssthresh is not None and ssthresh<1e5:
+        if ssthresh is not None and ssthresh < 1e5:
             ssthresh_list.append((event_time_us, ssthresh))
 
-        # Data Sent
+        # 2) When we send a packet, store its size by packet_number
         if category == 'transport' and event_type == 'packet_sent':
             packet_size = event_data.get('header', {}).get('packet_size', 0)
+            packet_num = event_data.get('header', {}).get('packet_number', None)
+
+            # Increase cumulative_data_sent
             cumulative_data_sent += packet_size
 
-            # frames = event_data.get('frames', [])
-            # for f in frames:
-            #     if f.get('frame_type') == 'ack':
-            #         acked_ranges = f.get('acked_ranges', [])
-            #         acked_size = sum((end - start + 1) for start, end in acked_ranges)
-            #         cumulative_data_acked += acked_size
+            # Save mapping: packet_number -> packet_size
+            if packet_num is not None:
+                sent_packet_sizes[packet_num] = packet_size
 
-        # Data Acked
-        elif event_type == 'packet_received':
+        # 3) When we receive a packet, if it has an ACK frame,
+        #    look up each acked packet_number and accumulate its size
+        elif category == 'transport' and event_type == 'packet_received':
             frames = event_data.get('frames', [])
             for frame in frames:
                 if frame.get('frame_type') == 'ack':
                     acked_ranges = frame.get('acked_ranges', [])
-                    acked_size = sum((end - start + 1) for start, end in acked_ranges)
-                    cumulative_data_acked += acked_size
+                    for (start_pn, end_pn) in acked_ranges:
+                        for pn in range(start_pn, end_pn + 1):
+                            if pn in sent_packet_sizes:
+                                cumulative_data_acked += sent_packet_sizes[pn]
+                                # Remove so we don't double-count
+                                del sent_packet_sizes[pn]
 
-        # Data Lost 
+        # 4) Data Lost
         elif category == 'loss' and event_type == 'packets_lost':
             lost_size = event_data.get('lost_bytes', 0)
             lost_packets = event_data.get('lost_packets', 0)
             cumulative_data_lost += lost_size
             lost_event_count += lost_packets
 
-        # Congestion control updates
+        # 5) Congestion control updates
         if event_type in ['metric_update', 'congestion_metric_update']:
             cwnd = event_data.get('current_cwnd', None)
             bytes_in_flight = event_data.get('bytes_in_flight', None)
-            if cwnd is not None and bytes_in_flight is not None:# and cwnd<1e6:
+            if cwnd is not None and bytes_in_flight is not None:
                 times_cc.append(event_time_us)
                 data_sent.append(cumulative_data_sent)
                 data_acked.append(cumulative_data_acked)
@@ -135,6 +143,7 @@ def extract_congestion_metrics(qlog_data):
     return (times_cc, data_sent, data_acked, data_lost,
             cwnd_values, bif_values, ssthresh_list,
             timeouts, timeout_counts, lost_event_count)
+
 
 
 def extract_bandwidth_metrics(qlog_data):
