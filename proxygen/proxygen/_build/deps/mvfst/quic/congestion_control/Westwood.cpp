@@ -10,6 +10,7 @@
 #include <quic/congestion_control/CongestionControlFunctions.h>
 #include <quic/logging/QLoggerConstants.h>
 #include <chrono>
+#include <cmath>
 #include <optional>
 
 namespace quic {
@@ -64,6 +65,7 @@ namespace quic {
                 latestRttSample_(std::chrono::microseconds(kWestwoodInitialRttMicroseconds)), // set initial last RTT
                 bandwidthNewestEstimate_(0), // bandwidth newest estimate
                 bandwidthEstimate_(0), // smoothed bandwidth estimate
+                step_(0),
                 bytesAckedInCurrentInterval_(0), // bytes acked during current RTT window
                 ssthresh_(std::numeric_limits<uint64_t>::max()), // slow start threshold at max
                 rttSampler_(std::chrono::seconds(kWestwoodRttExpirationSeconds)),
@@ -175,6 +177,7 @@ namespace quic {
         
         // if elapsed time exceeds max(lastRTT, minimal threshold), recalc bandwidth
         if (delta > std::max((uint64_t)latestRttSample_.count(), kWestwoodMinRttMicroseconds)) {
+            step_++;
             updateWestwoodBandwidthEstimates(delta); // update bandwidth estimate
             rttWindowStartTime_ = now; // reset measurement interval start
             bytesAckedInCurrentInterval_ = 0; // reset acked bytes count
@@ -321,10 +324,7 @@ namespace quic {
         bandwidthNewestEstimate_ = bw_ns_est;
 
         // update long-term smoothed bandwidth estimate
-        //bandwidthEstimate_ = westwoodLowPassFilter(bandwidthEstimate_, bw_ns_est);
-        bandwidthEstimate_ = (bandwidthEstimate_ == 0)
-                            ? bw_ns_est
-                            : westwoodLowPassFilter(bandwidthEstimate_, bw_ns_est);
+        bandwidthEstimate_ = westwoodLowPassFilter(bandwidthEstimate_, bw_ns_est);
 
         // Log the bandwidth estimate
         if (quicConnectionState_.qLogger) {
@@ -339,8 +339,13 @@ namespace quic {
     //     return ((7 * a) + b) >> 3;
     // }
     uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
-        return ((2 * a) + (6 * b)) >> 3;
-    }
+        double old_coef = (7.0 / 8.0) * std::tanh(static_cast<double>(step_));
+        double new_coef = 1.0 - old_coef;
+        
+        double filtered_value = old_coef * a + new_coef * b;
+        
+        return static_cast<uint32_t>(filtered_value);
+        }
 
     // calculates the number of bytes that can be sent without exceeding the congestion window
     uint64_t Westwood::getWritableBytes() const noexcept {
