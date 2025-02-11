@@ -418,7 +418,7 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
         'avg_cwnd_kb': avg_cwnd_kb,
         'std_cwnd_kb': std_cwnd_kb,             
         'num_retransmissions': num_retransmissions
-        'total_time': total_time_s
+        'total_time_s': total_time_s
     }
 
 
@@ -476,7 +476,7 @@ def print_summary_metrics(metrics):
     avg_cwnd_str     = f"{metrics['avg_cwnd_kb']:.2f} KB"
     retransmissions  = f"{metrics['num_retransmissions']} #"
     avg_rtt_str      = f"{metrics['avg_rtt_ms']:.2f} ms"
-    tx_time_str      = f"{metrics['transmission_duration_s']:.2f} s"
+    tx_time_str      = f"{metrics['total_time_s']:.2f} s"
 
 
     # Print them out
@@ -494,7 +494,7 @@ def print_summary_metrics(metrics):
 
     print(f"{'Loss Rate:':30s}{loss_rate_str:>15s}")
     print(f"{'Retransmissions:':30s}{retransmissions:>15s}")
-    print(f"{'Duration:':30s}{transmission_duration_str:>15s}")
+    print(f"{'Duration:':30s}{tx_time_str:>15s}")
 
 
     print("------------------------------------------------------------")
