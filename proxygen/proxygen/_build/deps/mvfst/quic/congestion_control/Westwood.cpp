@@ -340,6 +340,12 @@ namespace quic {
         return (a + (7 * b)) >> 3;
     }
 
+    //implement the low-pass filter: (2/8 * old_value) + (6/8 * new_value)
+    uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
+        return ((a<<1) + (6 * b)) >> 3;
+    }
+
+
 
     // calculates the number of bytes that can be sent without exceeding the congestion window
     uint64_t Westwood::getWritableBytes() const noexcept {
