@@ -339,12 +339,14 @@ namespace quic {
     //     return ((7 * a) + b) >> 3;
     // }
     uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
-        float old_coef = (2.0 / 8.0) * std::tanh(static_cast<float>(step_)/2.0);
-        float new_coef = 1.0 - old_coef;
+        constexpr float T = 10.0; 
+        float s = static_cast<float>(step_);
+        float coef = std::tanh(s / T) * (2.0 / 8.0);
         
-        float filtered_value = old_coef * a + new_coef * b;
+        // Filter using the rearranged expression: filtered = b + coef * (a - b)
+        float filtered = static_cast<float>(b) + coef * (static_cast<float>(a) - static_cast<float>(b));
         
-        return static_cast<uint32_t>(filtered_value);
+        return static_cast<uint32_t>(filtered);
         }
 
     // calculates the number of bytes that can be sent without exceeding the congestion window
