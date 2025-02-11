@@ -335,8 +335,11 @@ namespace quic {
     }
 
     // implement the low-pass filter: (7/8 * old_value) + (1/8 * new_value)
+    // uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
+    //     return ((7 * a) + b) >> 3;
+    // }
     uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
-        return ((7 * a) + b) >> 3;
+        return ((2 * a) + (6 * b)) >> 3;
     }
 
     // calculates the number of bytes that can be sent without exceeding the congestion window
