@@ -336,9 +336,9 @@ namespace quic {
     // }
 
     //implement the low-pass filter: (1/8 * old_value) + (7/8 * new_value)
-    uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
-        return (a + (7 * b)) >> 3;
-    }
+    // uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
+    //     return (a + (7 * b)) >> 3;
+    // }
 
     //implement the low-pass filter: (2/8 * old_value) + (6/8 * new_value)
     uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
