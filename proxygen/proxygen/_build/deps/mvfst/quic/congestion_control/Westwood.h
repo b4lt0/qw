@@ -74,6 +74,7 @@ private:
   std::chrono::microseconds latestRttSample_;
   uint32_t bandwidthNewestEstimate_;
   uint32_t bandwidthEstimate_;
+  uint32_t step_;
   uint64_t bytesAckedInCurrentInterval_; 
   uint64_t ssthresh_;
   WestwoodRttSampler rttSampler_; 
