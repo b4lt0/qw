@@ -319,8 +319,12 @@ namespace quic {
 
         // update instantaneous bandwidth estimate
         bandwidthNewestEstimate_ = bw_ns_est;
+
         // update long-term smoothed bandwidth estimate
-        bandwidthEstimate_ = westwoodLowPassFilter(bandwidthEstimate_, bw_ns_est);
+        //bandwidthEstimate_ = westwoodLowPassFilter(bandwidthEstimate_, bw_ns_est);
+        bandwidthEstimate_ = (bandwidthEstimate_ == 0)
+                            ? bw_ns_est
+                            : westwoodLowPassFilter(bandwidthEstimate_, bw_ns_est);
 
         // Log the bandwidth estimate
         if (quicConnectionState_.qLogger) {
@@ -331,21 +335,9 @@ namespace quic {
     }
 
     // implement the low-pass filter: (7/8 * old_value) + (1/8 * new_value)
-    // uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
-    //     return ((7 * a) + b) >> 3;
-    // }
-
-    //implement the low-pass filter: (1/8 * old_value) + (7/8 * new_value)
-    // uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
-    //     return (a + (7 * b)) >> 3;
-    // }
-
-    //implement the low-pass filter: (4/8 * old_value) + (4/8 * new_value)
     uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
-        return ((a>>1) + (b>>1));
+        return ((7 * a) + b) >> 3;
     }
-
-
 
     // calculates the number of bytes that can be sent without exceeding the congestion window
     uint64_t Westwood::getWritableBytes() const noexcept {
