@@ -341,8 +341,8 @@ namespace quic {
     uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
         constexpr float T = 10.0; 
         float s = static_cast<float>(step_);
-        float coef = std::tanh(s / T) * (2.0 / 8.0);
-        
+        //float coef = std::tanh(s / T) * (2.0 / 8.0);
+        float coef = (2.0 / 8.0);
         // Filter using the rearranged expression: filtered = b + coef * (a - b)
         float filtered = static_cast<float>(b) + coef * (static_cast<float>(a) - static_cast<float>(b));
         
