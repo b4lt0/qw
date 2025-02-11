@@ -339,7 +339,7 @@ namespace quic {
     //     return ((7 * a) + b) >> 3;
     // }
     uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
-        double old_coef = (7.0 / 8.0) * std::tanh(static_cast<double>(step_));
+        double old_coef = (1.0 / 8.0) * std::tanh(static_cast<double>(step_));
         double new_coef = 1.0 - old_coef;
         
         double filtered_value = old_coef * a + new_coef * b;
