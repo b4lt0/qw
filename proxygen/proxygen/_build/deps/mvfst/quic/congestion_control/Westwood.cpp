@@ -342,7 +342,7 @@ namespace quic {
         constexpr float T = 10.0; 
         float s = static_cast<float>(step_);
         float coef = std::tanh(s / T) * (6.0 / 8.0);
-        float filtered = (coef * <float>(a)) + ((1.0 - coef ) * static_cast<float>(b));
+        float filtered = (coef * static_cast<float>(a)) + ((1.0 - coef ) * static_cast<float>(b));
         
         return static_cast<uint32_t>(filtered);
         }
