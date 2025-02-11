@@ -417,7 +417,7 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
         'loss_rate_percent': loss_rate_percent,
         'avg_cwnd_kb': avg_cwnd_kb,
         'std_cwnd_kb': std_cwnd_kb,             
-        'num_retransmissions': num_retransmissions
+        'num_retransmissions': num_retransmissions,
         'total_time_s': total_time_s
     }
 
