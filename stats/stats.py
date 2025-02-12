@@ -211,11 +211,23 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
                       save_path=None):
     """
     Generates the 2x2 plot of (RTT, Data, CC, Bandwidth).
+
+    Expects:
+      - rtt_data: (times_rtt, latest_rtts, min_rtts, smoothed_rtts)
+      - cc_data: (times_cc, data_sent, data_acked, data_lost,
+                  cwnd_values, bif_values, ssthresh_list,
+                  timeouts, timeout_counts, lost_event_count,
+                  real_bw, real_bw_times)
+      - bw_data: (times_bw, bw_estimates)
     """
     times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
+
+    # Updated unpacking: expecting 12 values now
     (times_cc, data_sent, data_acked, data_lost,
      cwnd_values, bif_values, ssthresh_list,
-     timeouts, timeout_counts, lost_event_count) = cc_data
+     timeouts, timeout_counts, lost_event_count,
+     real_bw, real_bw_times) = cc_data
+
     times_bw, bw_estimates = bw_data
 
     # Normalize times to start from zero
@@ -241,7 +253,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     data_acked_mb = [a / (1024.0*1024.0) for a in data_acked]
     data_lost_mb = [l / (1024.0*1024.0) for l in data_lost]
 
-    # bandwidth in bytes/s -> MB/s
+    # bandwidth in bytes/s -> MB/s for the estimated values
     bw_estimates_mbs = []
     for bw in bw_estimates:
         if bw is not None:
@@ -281,15 +293,16 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     ax_data.legend()
     ax_data.grid(True)
 
-    # Subplot 3: CC metrics
+    # Subplot 3: Congestion Control metrics
     ax_cc = axs[1, 0]
     if times_cc_s and cwnd_kb:
         ax_cc.plot(times_cc_s, cwnd_kb, label='CWND (KB)', color='purple')
     if plot_bytes_in_flight and times_cc_s and bif_kb:
         ax_cc.plot(times_cc_s, bif_kb, label='Bytes in Flight (KB)', color='brown')
-    # ssthresh
+    # For ssthresh, synchronize using times_cc[0] as the base
     if ssthresh_list:
-        ssthresh_times_s = normalize_times([tup[0] for tup in ssthresh_list])
+        base_time = times_cc[0] if times_cc else 0
+        ssthresh_times_s = [ (t - base_time) / 1_000_000.0 for t in [tup[0] for tup in ssthresh_list] ]
         ssthresh_values_kb = [(tup[1] / 1024.0) for tup in ssthresh_list]
         ax_cc.step(ssthresh_times_s, ssthresh_values_kb, label='SSThresh (KB)', color='red', linestyle='--')
     ax_cc.set_title("Congestion Control Over Time")
@@ -302,16 +315,14 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     ax_bw = axs[1, 1]
     if times_bw_s and bw_estimates_mbs:
         ax_bw.plot(times_bw_s, bw_estimates_mbs, label='Estimated BW (MB/s)', linestyle='-')
-
+    # Plot the real bandwidth (computed from the differences in data_acked)
     if real_bw_times and real_bw:
         ax_bw.plot(real_bw_times, real_bw, label='Real BW (MB/s)', linestyle='--', color='orange')
-
     ax_bw.set_title("Bandwidth Estimation Over Time")
     ax_bw.set_xlabel("Time (s)")
     ax_bw.set_ylabel("Bandwidth (MB/s)")
     ax_bw.legend()
     ax_bw.grid(True)
-
 
     plt.tight_layout()
 
@@ -347,7 +358,7 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
      cwnd_values, bif_values, ssthresh_list,
      timeouts, timeout_counts, lost_event_count,
      real_bw, real_bw_times) = cc_data
-     
+
     times_bw, bw_estimates = bw_data
 
     ############################################################################
