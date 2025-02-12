@@ -29,7 +29,6 @@ def extract_cca_name(qlog_data):
             if category == "transport" and event_type == "transport_state_update":
                 update_val = event_data.get("update", "")
                 if "CCA set to" in update_val:
-                    # the format is "CCA set to <cca_name>"
                     parts = update_val.split()
                     if len(parts) >= 4:
                         cca = parts[3]
@@ -54,7 +53,7 @@ def extract_rtt_metrics(qlog_data):
     events = qlog_data['traces'][0]['events']
     for event in events:
         if event[1] == 'recovery' and event[2] == 'metric_update':
-            event_time_us = float(event[0])  # microseconds
+            event_time_us = float(event[0])
             times_rtt.append(event_time_us)
             latest_rtts.append(event[3].get('latest_rtt', None))
             min_rtts.append(event[3].get('min_rtt', None))
@@ -63,7 +62,7 @@ def extract_rtt_metrics(qlog_data):
     return times_rtt, latest_rtts, min_rtts, smoothed_rtts
 
 
-def extract_congestion_metrics(qlog_data, rtt_data=None):
+def extract_congestion_metrics(qlog_data):
     """
     Extract congestion-related data from qlog_data.
 
@@ -78,8 +77,6 @@ def extract_congestion_metrics(qlog_data, rtt_data=None):
         - timeouts (list of float): Times (microseconds) when loss timeout expired
         - timeout_counts (dict)
         - lost_event_count (int): Number of `packet_lost` events
-        - real_bw (list of float): Instantaneous real bandwidth (MB/s)
-        - real_bw_times (list of float): Times (s) corresponding to the real bandwidth samples
     """
     times_cc = []
     data_sent = []
@@ -91,17 +88,12 @@ def extract_congestion_metrics(qlog_data, rtt_data=None):
     timeouts = []
     timeout_counts = {}
 
-    # These two lists will hold the instantaneous (real) bandwidth and the corresponding times.
-    real_bw = []
-    real_bw_times = []
-
     cumulative_data_sent = 0
     cumulative_data_acked = 0
     cumulative_data_lost = 0
-
     lost_event_count = 0
 
-    # 1) Dictionary to track packet_number -> packet_size
+    # Dictionary to track packet_number -> packet_size
     sent_packet_sizes = {}
 
     events = qlog_data['traces'][0]['events']
@@ -109,7 +101,7 @@ def extract_congestion_metrics(qlog_data, rtt_data=None):
         if len(event) < 4:
             continue
 
-        event_time_us = float(event[0])  # microseconds
+        event_time_us = float(event[0])
         category = event[1]
         event_type = event[2]
         event_data = event[3]
@@ -118,28 +110,22 @@ def extract_congestion_metrics(qlog_data, rtt_data=None):
         if category == 'transport' and event_type == 'transport_state_update':
             if event_data.get('update') == 'loss timeout expired':
                 timeouts.append(event_time_us)
-                timeout_counts['loss_timeout_expired'] = \
-                    timeout_counts.get('loss_timeout_expired', 0) + 1
+                timeout_counts['loss_timeout_expired'] = timeout_counts.get('loss_timeout_expired', 0) + 1
 
         # ssthresh
         ssthresh = event_data.get('ssthresh', None)
         if ssthresh is not None and ssthresh < 1e5:
             ssthresh_list.append((event_time_us, ssthresh))
 
-        # 2) When we send a packet, store its size by packet_number
+        # Packet sent: store packet size by packet number
         if category == 'transport' and event_type == 'packet_sent':
             packet_size = event_data.get('header', {}).get('packet_size', 0)
             packet_num = event_data.get('header', {}).get('packet_number', None)
-
-            # Increase cumulative_data_sent
             cumulative_data_sent += packet_size
-
-            # Save mapping: packet_number -> packet_size
             if packet_num is not None:
                 sent_packet_sizes[packet_num] = packet_size
 
-        # 3) When we receive a packet, if it has an ACK frame,
-        #    look up each acked packet_number and accumulate its size
+        # Packet received: update cumulative data acked for each acked packet
         elif category == 'transport' and event_type == 'packet_received':
             frames = event_data.get('frames', [])
             for frame in frames:
@@ -149,69 +135,30 @@ def extract_congestion_metrics(qlog_data, rtt_data=None):
                         for pn in range(start_pn, end_pn + 1):
                             if pn in sent_packet_sizes:
                                 cumulative_data_acked += sent_packet_sizes[pn]
-                                # Remove so we don't double-count
                                 del sent_packet_sizes[pn]
 
-        # 4) Data Lost
+        # Data lost events
         elif category == 'loss' and event_type == 'packets_lost':
             lost_size = event_data.get('lost_bytes', 0)
             lost_packets = event_data.get('lost_packets', 0)
             cumulative_data_lost += lost_size
             lost_event_count += lost_packets
 
-        # 5) Congestion control updates
+        # Congestion control updates
         if event_type in ['metric_update', 'congestion_metric_update']:
             cwnd = event_data.get('current_cwnd', None)
-            bytes_in_flight = event_data.get('bytes_in_flight', None)
-            if cwnd is not None and bytes_in_flight is not None:
+            bif = event_data.get('bytes_in_flight', None)
+            if cwnd is not None and bif is not None:
                 times_cc.append(event_time_us)
                 data_sent.append(cumulative_data_sent)
                 data_acked.append(cumulative_data_acked)
                 data_lost.append(cumulative_data_lost)
                 cwnd_values.append(cwnd)
-                bif_values.append(bytes_in_flight)
-
-    # Compute the instantaneous (real) bandwidth based on changes in data_acked.
-    # The throughput is calculated as the change in acked bytes divided by the time difference.
-    # We then convert bytes per second to MB/s.
-    for i in range(1, len(times_cc)):
-        dt = (times_cc[i] - times_cc[i - 1]) / 1_000_000.0  # seconds
-        if dt <= 0:
-            continue
-
-        # Determine the midpoint time (in microseconds) of the current interval
-        mid_time = (times_cc[i] + times_cc[i - 1]) / 2
-
-        # If RTT data is provided, only take this sample if dt > RTT.
-        if rtt_data is not None:
-            times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
-            rtt_value = None
-            # Find the latest RTT measurement taken before mid_time.
-            for j in range(len(times_rtt)):
-                if times_rtt[j] > mid_time:
-                    break
-                # Prefer the smoothed RTT if available, else use the latest RTT.
-                rtt_value = smoothed_rtts[j] if smoothed_rtts[j] is not None else latest_rtts[j]
-            if rtt_value is not None:
-                rtt_sec = rtt_value / 1_000_000.0  # convert from microseconds to seconds
-            else:
-                rtt_sec = 0  # if no RTT measurement is available, do not filter
-            if dt <= rtt_sec:
-                continue  # skip this sample because dt is not greater than the RTT
-
-        delta_acked = data_acked[i] - data_acked[i - 1]
-        bw_bytes_per_s = delta_acked / dt
-        bw_mbs = bw_bytes_per_s / (1024.0 * 1024.0)
-        real_bw.append(bw_mbs)
-        # Normalize the midpoint time (to seconds from the start of times_cc)
-        norm_mid_time = (mid_time - times_cc[0]) / 1_000_000.0
-        real_bw_times.append(norm_mid_time)
+                bif_values.append(bif)
 
     return (times_cc, data_sent, data_acked, data_lost,
             cwnd_values, bif_values, ssthresh_list,
-            timeouts, timeout_counts, lost_event_count,
-            real_bw, real_bw_times)
-
+            timeouts, timeout_counts, lost_event_count)
 
 
 def extract_bandwidth_metrics(qlog_data):
@@ -230,13 +177,79 @@ def extract_bandwidth_metrics(qlog_data):
         if len(event) < 4:
             continue
 
-        if (event[1] == 'bandwidth_est_update' and
-            event[2] == 'bandwidth_est_update'):
+        if event[1] == 'bandwidth_est_update' and event[2] == 'bandwidth_est_update':
             event_time_us = float(event[0])
             times_bw.append(event_time_us)
             bw_estimates.append(event[3].get('bandwidth_bytes', None))
 
     return times_bw, bw_estimates
+
+
+###############################################################################
+#                          New Real Bandwidth Computation                     #
+###############################################################################
+
+def compute_real_bw(rtt_data, cc_data):
+    """
+    For each RTT event, compute the "real bandwidth" sample as:
+    
+      BW = (data_acked at time t+RTT - data_acked at time t) / RTT
+
+    where t is the RTT event time (in microseconds) and RTT is taken from
+    the smoothed RTT if available (otherwise the latest RTT) and converted to seconds.
+    The sample is timestamped at the midpoint of [t, t+RTT] and times are normalized
+    (in seconds) relative to the first congestion control event.
+    
+    Returns:
+        real_bw_times (list of float): Normalized sample times (seconds)
+        real_bw_samples (list of float): Real bandwidth samples (in MB/s)
+    """
+    times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
+    times_cc, data_sent, data_acked, data_lost, _, _, _, _, _, _ = cc_data
+
+    # Convert times_cc and data_acked to numpy arrays for interpolation
+    times_cc_arr = np.array(times_cc)
+    data_acked_arr = np.array(data_acked)
+
+    real_bw_samples = []
+    real_bw_times = []
+
+    for i, t_rtt in enumerate(times_rtt):
+        # Choose RTT value: use smoothed if available, else latest
+        if smoothed_rtts[i] is not None:
+            rtt_val = smoothed_rtts[i]
+        elif latest_rtts[i] is not None:
+            rtt_val = latest_rtts[i]
+        else:
+            continue  # skip if no RTT value available
+
+        RTT_sec = rtt_val / 1e6  # Convert RTT from microseconds to seconds
+
+        t_start = t_rtt
+        t_end = t_rtt + RTT_sec * 1e6  # t_end in microseconds
+
+        # If the end of the RTT interval exceeds our available congestion control events, skip it.
+        if t_end > times_cc_arr[-1]:
+            continue
+
+        # Interpolate cumulative data_acked at t_start and t_end
+        acked_start = np.interp(t_start, times_cc_arr, data_acked_arr)
+        acked_end = np.interp(t_end, times_cc_arr, data_acked_arr)
+        delta_acked = acked_end - acked_start
+
+        # Compute instantaneous bandwidth in bytes/s and convert to MB/s
+        bw_bytes_per_sec = delta_acked / RTT_sec
+        bw_mbs = bw_bytes_per_sec / (1024.0 * 1024.0)
+
+        # Use the midpoint of the interval as the sample time
+        sample_time = (t_start + t_end) / 2.0
+        real_bw_samples.append(bw_mbs)
+        real_bw_times.append(sample_time)
+
+    # Normalize sample times relative to the first congestion control event
+    base_time = times_cc[0] if times_cc else 0
+    real_bw_times_norm = [(t - base_time) / 1e6 for t in real_bw_times]
+    return real_bw_times_norm, real_bw_samples
 
 
 ###############################################################################
@@ -250,61 +263,57 @@ def normalize_times(times_us):
     if not times_us:
         return []
     start_time = times_us[0]
-    return [(t - start_time) / 1_000_000.0 for t in times_us]
+    return [(t - start_time) / 1e6 for t in times_us]
 
 
-def plot_all_subplots(rtt_data, cc_data, bw_data,
+def plot_all_subplots(rtt_data, cc_data, bw_data, real_bw_data=None,
                       plot_bytes_in_flight=False,
                       save_path=None):
     """
-    Generates the 2x2 plot of (RTT, Data, CC, Bandwidth).
-
-    Expects:
+    Generates a 2x2 plot of:
+      - RTT over time
+      - Data (sent, acked, lost) over time
+      - Congestion control (CWND, bytes in flight) over time
+      - Bandwidth: estimated bandwidth and real bandwidth (computed as bytes acked per RTT divided by RTT)
+    
+    Parameters:
       - rtt_data: (times_rtt, latest_rtts, min_rtts, smoothed_rtts)
-      - cc_data: (times_cc, data_sent, data_acked, data_lost,
-                  cwnd_values, bif_values, ssthresh_list,
-                  timeouts, timeout_counts, lost_event_count,
-                  real_bw, real_bw_times)
+      - cc_data: (times_cc, data_sent, data_acked, data_lost, cwnd_values, bif_values, ssthresh_list,
+                  timeouts, timeout_counts, lost_event_count)
       - bw_data: (times_bw, bw_estimates)
+      - real_bw_data: (real_bw_times, real_bw_samples) computed by compute_real_bw()
+      - plot_bytes_in_flight: if True, also plot the bytes in flight.
     """
     times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
-
-    # Unpack congestion control data (12 values expected)
     (times_cc, data_sent, data_acked, data_lost,
      cwnd_values, bif_values, ssthresh_list,
-     timeouts, timeout_counts, lost_event_count,
-     real_bw, real_bw_times) = cc_data
-
+     timeouts, timeout_counts, lost_event_count) = cc_data
     times_bw, bw_estimates = bw_data
 
-    # Normalize times to start from zero
+    # Normalize times for plotting
     times_rtt_s = normalize_times(times_rtt)
     times_cc_s = normalize_times(times_cc)
     times_bw_s = normalize_times(times_bw)
     timeout_s = normalize_times(timeouts)
 
     # Convert units for plotting:
-    # RTT in microseconds -> ms
-    latest_rtts_ms = [(rtt / 1000.0) for rtt in latest_rtts if rtt is not None]
-    min_rtts_ms = [(rtt / 1000.0) for rtt in min_rtts if rtt is not None]
-    smoothed_rtts_ms = [(rtt / 1000.0) for rtt in smoothed_rtts if rtt is not None]
+    # RTT: microseconds -> ms
+    latest_rtts_ms = [r / 1000.0 for r in latest_rtts if r is not None]
+    min_rtts_ms = [r / 1000.0 for r in min_rtts if r is not None]
+    smoothed_rtts_ms = [r / 1000.0 for r in smoothed_rtts if r is not None]
 
-    # cwnd in bytes -> KB
+    # CWND: bytes -> KB
     cwnd_kb = [c / 1024.0 for c in cwnd_values]
-
-    # BIF in bytes -> KB
+    # Bytes in flight: bytes -> KB
     bif_kb = [b / 1024.0 for b in bif_values]
 
-    # Data in bytes -> MB
+    # Data: bytes -> MB
     data_sent_mb = [s / (1024.0 * 1024.0) for s in data_sent]
     data_acked_mb = [a / (1024.0 * 1024.0) for a in data_acked]
     data_lost_mb = [l / (1024.0 * 1024.0) for l in data_lost]
 
-    # Estimated bandwidth in bytes/s -> MB/s
-    bw_estimates_mbs = []
-    for bw in bw_estimates:
-        if bw is not None:
-            bw_estimates_mbs.append(bw / (1024.0 * 1024.0))
+    # Estimated bandwidth: bytes/s -> MB/s
+    bw_estimates_mbs = [bw / (1024.0 * 1024.0) for bw in bw_estimates if bw is not None]
 
     fig, axs = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle("QUIC Metrics Overview", fontsize=16)
@@ -345,11 +354,10 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
         ax_cc.plot(times_cc_s, cwnd_kb, label='CWND (KB)', color='purple')
     if plot_bytes_in_flight and times_cc_s and bif_kb:
         ax_cc.plot(times_cc_s, bif_kb, label='Bytes in Flight (KB)', color='brown')
-    # Synchronize ssthresh times using times_cc[0] as base
     if ssthresh_list:
         base_time = times_cc[0] if times_cc else 0
-        ssthresh_times_s = [ (t - base_time) / 1_000_000.0 for t in [tup[0] for tup in ssthresh_list] ]
-        ssthresh_values_kb = [(tup[1] / 1024.0) for tup in ssthresh_list]
+        ssthresh_times_s = [(t - base_time) / 1e6 for t, _ in ssthresh_list]
+        ssthresh_values_kb = [val / 1024.0 for _, val in ssthresh_list]
         ax_cc.step(ssthresh_times_s, ssthresh_values_kb, label='SSThresh (KB)', color='red', linestyle='--')
     ax_cc.set_title("Congestion Control Over Time")
     ax_cc.set_xlabel("Time (s)")
@@ -360,13 +368,12 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     # Subplot 4: Bandwidth
     ax_bw = axs[1, 1]
     if times_bw_s and bw_estimates_mbs:
-        ax_bw.plot(times_bw_s, bw_estimates_mbs, label='Estimated BW (MB/s)', linestyle='-')
+        ax_bw.plot(times_bw_s, bw_estimates_mbs, label='Estimated BW (MB/s)', linestyle='-', color='blue')
     
-    # Instead of smoothing every 5 samples, we now plot the instantaneous real BW
-    # that was sampled only if dt > corresponding RTT.
-    if real_bw and real_bw_times:
-        ax_bw.plot(real_bw_times, real_bw, label='Real BW (MB/s)', 
-                   linestyle='None', marker='.', color='orange')
+    # If provided, plot the real BW samples (bytes acked per RTT divided by RTT)
+    if real_bw_data is not None:
+        real_bw_times, real_bw_samples = real_bw_data
+        ax_bw.plot(real_bw_times, real_bw_samples, label='Real BW (MB/s)', linestyle='-', marker='o', color='orange')
     
     ax_bw.set_title("Bandwidth Estimation Over Time")
     ax_bw.set_xlabel("Time (s)")
@@ -375,13 +382,10 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     ax_bw.grid(True)
 
     plt.tight_layout()
-
     if save_path:
         plt.savefig(save_path)
         print(f"Plot saved to {save_path}")
-
     plt.show()
-
 
 
 ###############################################################################
@@ -392,34 +396,17 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
     """
     Compute summary metrics (average RTT, average BW, throughput, goodput,
     loss rate, average cwnd, number of retransmissions) from the extracted data.
-    
-    Also compute standard deviations where applicable (RTT, BW, CWND).
-
-    Returns a dict with keys:
-       'avg_rtt_ms', 'std_rtt_ms',
-       'avg_bw_mbps', 'std_bw_mbps',
-       'throughput_mbps', 'goodput_mbps',
-       'loss_rate_percent',
-       'avg_cwnd_kb', 'std_cwnd_kb',
-       'num_retransmissions'
     """
     times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
-    
     (times_cc, data_sent, data_acked, data_lost,
      cwnd_values, bif_values, ssthresh_list,
-     timeouts, timeout_counts, lost_event_count,
-     real_bw, real_bw_times) = cc_data
-
+     timeouts, timeout_counts, lost_event_count) = cc_data
     times_bw, bw_estimates = bw_data
 
-    ############################################################################
-    # 1) RTT (ms)
-    ############################################################################
+    # RTT metrics
     valid_smoothed = [r for r in smoothed_rtts if r is not None]
     if valid_smoothed:
-        # Mean
         avg_rtt_us = statistics.mean(valid_smoothed)
-        # Std dev
         std_rtt_us = statistics.stdev(valid_smoothed) if len(valid_smoothed) > 1 else 0.0
     else:
         valid_latest = [r for r in latest_rtts if r is not None]
@@ -429,13 +416,10 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
         else:
             avg_rtt_us = math.nan
             std_rtt_us = math.nan
-
     avg_rtt_ms = avg_rtt_us / 1000.0
     std_rtt_ms = std_rtt_us / 1000.0
 
-    ############################################################################
-    # 2) Bandwidth (MB/s)
-    ############################################################################
+    # Bandwidth metrics
     valid_bw = [bw for bw in bw_estimates if bw is not None]
     if valid_bw:
         bw_mbps_vals = [bw / (1024.0 * 1024.0) for bw in valid_bw]
@@ -445,48 +429,21 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
         avg_bw_mbps = math.nan
         std_bw_mbps = math.nan
 
-    ############################################################################
-    # 3) Time & Data for throughput/goodput
-    ############################################################################
+    # Time and data metrics for throughput/goodput
     if len(times_cc) > 1:
-        total_time_s = (times_cc[-1] - times_cc[0]) / 1_000_000.0
+        total_time_s = (times_cc[-1] - times_cc[0]) / 1e6
     else:
         total_time_s = 0.0
-
     final_sent = data_sent[-1] if data_sent else 0
     final_acked = data_acked[-1] if data_acked else 0
     final_lost = data_lost[-1] if data_lost else 0
 
-    ############################################################################
-    # 4) Throughput (MB/s) = acked_bytes / total_time_s
-    ############################################################################
-    if total_time_s > 0:
-        throughput_mbps = (final_acked / (1024.0 * 1024.0)) / total_time_s
-    else:
-        throughput_mbps = math.nan
+    throughput_mbps = (final_acked / (1024.0 * 1024.0)) / total_time_s if total_time_s > 0 else math.nan
+    good_bytes = final_acked - final_lost if final_acked >= final_lost else 0
+    goodput_mbps = (good_bytes / (1024.0 * 1024.0)) / total_time_s if total_time_s > 0 else 0.0
 
-    ############################################################################
-    # 5) Goodput (MB/s)
-    ############################################################################
-    if total_time_s > 0:
-        good_bytes = final_acked - final_lost
-        if good_bytes < 0:
-            good_bytes = 0
-        goodput_mbps = (good_bytes / (1024.0 * 1024.0)) / total_time_s
-    else:
-        goodput_mbps = 0.0
+    loss_rate_percent = (final_lost / float(final_sent)) * 100.0 if final_sent > 0 else 0.0
 
-    ############################################################################
-    # 6) Loss Rate (%)
-    ############################################################################
-    if final_sent > 0:
-        loss_rate_percent = (final_lost / float(final_sent)) * 100.0
-    else:
-        loss_rate_percent = 0.0
-
-    ############################################################################
-    # 7) Congestion Window (KB)
-    ############################################################################
     if cwnd_values:
         cwnd_kb_values = [c / 1024.0 for c in cwnd_values]
         avg_cwnd_kb = statistics.mean(cwnd_kb_values)
@@ -495,29 +452,24 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
         avg_cwnd_kb = math.nan
         std_cwnd_kb = math.nan
 
-    num_retransmissions = lost_event_count
-
     return {
         'avg_rtt_ms': avg_rtt_ms,
-        'std_rtt_ms': std_rtt_ms,                
+        'std_rtt_ms': std_rtt_ms,
         'avg_bw_mbps': avg_bw_mbps,
-        'std_bw_mbps': std_bw_mbps,              
+        'std_bw_mbps': std_bw_mbps,
         'throughput_mbps': throughput_mbps,
         'goodput_mbps': goodput_mbps,
         'loss_rate_percent': loss_rate_percent,
         'avg_cwnd_kb': avg_cwnd_kb,
-        'std_cwnd_kb': std_cwnd_kb,             
-        'num_retransmissions': num_retransmissions,
+        'std_cwnd_kb': std_cwnd_kb,
+        'num_retransmissions': lost_event_count,
         'total_time_s': total_time_s
     }
 
 
 def format_speed(mbps_value):
     """
-    Given a speed in MB/s (float), return a string:
-      - "<value> KB/s" if < 1 MB/s
-      - "<value> MB/s" if >= 1 MB/s
-    with two decimals of precision.
+    Format a speed value in MB/s as a string in KB/s if below 1 MB/s, otherwise in MB/s.
     """
     if math.isnan(mbps_value):
         return "NaN"
@@ -530,34 +482,17 @@ def format_speed(mbps_value):
 
 def print_summary_metrics(metrics):
     """
-    Pretty-print the summary metrics dictionary with bandwidth/throughput/goodput
-    displayed in KB/s if < 1 MB/s, otherwise in MB/s. Also prints standard
-    deviations where available.
+    Pretty-print the summary metrics.
     """
     print("------------------------------------------------------------")
     print("Summary of Key Metrics:")
 
-    # Averages (for BW, throughput, goodput) in MB/s or KB/s
     avg_bw_str       = format_speed(metrics['avg_bw_mbps'])
     throughput_str   = format_speed(metrics['throughput_mbps'])
     goodput_str      = format_speed(metrics['goodput_mbps'])
-
-    # Standard deviations for BW, RTT, CWND
-    if not math.isnan(metrics['std_bw_mbps']):
-        std_bw_str = format_speed(metrics['std_bw_mbps'])
-    else:
-        std_bw_str = "NaN"
-
-    if not math.isnan(metrics['std_rtt_ms']):
-        std_rtt_str = f"{metrics['std_rtt_ms']:.2f} ms"
-    else:
-        std_rtt_str = "NaN"
-
-    if not math.isnan(metrics['std_cwnd_kb']):
-        std_cwnd_str = f"{metrics['std_cwnd_kb']:.2f} KB"
-    else:
-        std_cwnd_str = "NaN"
-
+    std_bw_str       = format_speed(metrics['std_bw_mbps']) if not math.isnan(metrics['std_bw_mbps']) else "NaN"
+    std_rtt_str      = f"{metrics['std_rtt_ms']:.2f} ms" if not math.isnan(metrics['std_rtt_ms']) else "NaN"
+    std_cwnd_str     = f"{metrics['std_cwnd_kb']:.2f} KB" if not math.isnan(metrics['std_cwnd_kb']) else "NaN"
     loss_rate_str    = f"{metrics['loss_rate_percent']:.2f} %"
     avg_cwnd_str     = f"{metrics['avg_cwnd_kb']:.2f} KB"
     retransmissions  = f"{metrics['num_retransmissions']} #"
@@ -565,13 +500,13 @@ def print_summary_metrics(metrics):
     tx_time_str      = f"{metrics['total_time_s']:.2f} s"
 
     print(f"{'Average BW:':30s}{avg_bw_str:>15s}")
-    print(f"{'Std Dev BW:':30s}{std_bw_str:>15s}")              
+    print(f"{'Std Dev BW:':30s}{std_bw_str:>15s}")
     print(f"{'Throughput:':30s}{throughput_str:>15s}")
     print(f"{'Goodput:':30s}{goodput_str:>15s}")
     print(f"{'Average CWND:':30s}{avg_cwnd_str:>15s}")
-    print(f"{'Std Dev CWND:':30s}{std_cwnd_str:>15s}")          
+    print(f"{'Std Dev CWND:':30s}{std_cwnd_str:>15s}")
     print(f"{'Average RTT:':30s}{avg_rtt_str:>15s}")
-    print(f"{'Std Dev RTT:':30s}{std_rtt_str:>15s}")            
+    print(f"{'Std Dev RTT:':30s}{std_rtt_str:>15s}")
     print(f"{'Loss Rate:':30s}{loss_rate_str:>15s}")
     print(f"{'Retransmissions:':30s}{retransmissions:>15s}")
     print(f"{'Duration:':30s}{tx_time_str:>15s}")
@@ -599,22 +534,24 @@ def main():
     with open(qlog_path, 'r') as file:
         qlog_data = json.load(file)
 
-    # Extract RTT and other data
+    # Extract data from qlog
     rtt_data = extract_rtt_metrics(qlog_data)
-    cc_data = extract_congestion_metrics(qlog_data, rtt_data=rtt_data)
+    cc_data = extract_congestion_metrics(qlog_data)
     bw_data = extract_bandwidth_metrics(qlog_data)
 
-    # Compute summary stats (including std dev)
-    metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
+    # Compute real bandwidth samples (bytes acked over one RTT divided by RTT)
+    real_bw_data = compute_real_bw(rtt_data, cc_data)
 
-    # Print summary
+    # Compute and print summary metrics
+    metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
     print_summary_metrics(metrics)
 
-    # Plot everything
+    # Plot all subplots (the fourth subplot shows both the estimated BW and the real BW samples)
     plot_all_subplots(
         rtt_data,
         cc_data,
         bw_data,
+        real_bw_data=real_bw_data,
         plot_bytes_in_flight=args.plot_bytes_in_flight,
         save_path=args.output
     )
