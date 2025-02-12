@@ -326,23 +326,23 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     else:
         real_bw_smoothed = np.array(real_bw)
     
-    # Convert to numpy array if not already
-    real_bw_smoothed = np.array(real_bw_smoothed)
-    
-    # Compute the average and then define the clipping threshold as 1.2 * average
+    # Filter out values that are above 1.1x the average of the smoothed real BW.
+    # Points above that threshold will not be shown.
     if len(real_bw_smoothed) > 0:
         avg_real_bw = np.mean(real_bw_smoothed)
-        threshold = avg_real_bw * 1.2
-        # Clip values above the threshold
-        real_bw_clipped = np.minimum(real_bw_smoothed, threshold)
+        threshold = avg_real_bw * 1.1
+        mask = real_bw_smoothed <= threshold
+        real_bw_filtered = real_bw_smoothed[mask]
+        real_bw_times_filtered = np.array(real_bw_times)[mask]
     else:
-        real_bw_clipped = real_bw_smoothed
-
-    # Plot the real BW as points (markers only)
-    if len(real_bw_times) > 0 and len(real_bw_clipped) > 0:
-        ax_bw.plot(real_bw_times, real_bw_clipped, label='Real BW (MB/s, clipped)', 
-                   linestyle='None', marker='o', color='orange')
-
+        real_bw_filtered = real_bw_smoothed
+        real_bw_times_filtered = np.array(real_bw_times)
+    
+    # Plot the filtered real BW as points (markers only, no connecting line)
+    if len(real_bw_times_filtered) > 0 and len(real_bw_filtered) > 0:
+        ax_bw.plot(real_bw_times_filtered, real_bw_filtered, label='Real BW (MB/s)', 
+                   linestyle='None', marker='.', color='orange')
+    
     ax_bw.set_title("Bandwidth Estimation Over Time")
     ax_bw.set_xlabel("Time (s)")
     ax_bw.set_ylabel("Bandwidth (MB/s)")
