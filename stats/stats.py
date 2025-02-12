@@ -222,7 +222,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     """
     times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
 
-    # Updated unpacking: expecting 12 values now
+    # Unpack congestion control data (12 values expected now)
     (times_cc, data_sent, data_acked, data_lost,
      cwnd_values, bif_values, ssthresh_list,
      timeouts, timeout_counts, lost_event_count,
@@ -236,7 +236,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     times_bw_s = normalize_times(times_bw)
     timeout_s = normalize_times(timeouts)
 
-    # Convert units for plotting
+    # Convert units for plotting:
     # RTT in microseconds -> ms
     latest_rtts_ms = [(rtt / 1000.0) for rtt in latest_rtts if rtt is not None]
     min_rtts_ms = [(rtt / 1000.0) for rtt in min_rtts if rtt is not None]
@@ -248,16 +248,16 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     # BIF in bytes -> KB
     bif_kb = [b / 1024.0 for b in bif_values]
 
-    # data in bytes -> MB
-    data_sent_mb = [s / (1024.0*1024.0) for s in data_sent]
-    data_acked_mb = [a / (1024.0*1024.0) for a in data_acked]
-    data_lost_mb = [l / (1024.0*1024.0) for l in data_lost]
+    # Data in bytes -> MB
+    data_sent_mb = [s / (1024.0 * 1024.0) for s in data_sent]
+    data_acked_mb = [a / (1024.0 * 1024.0) for a in data_acked]
+    data_lost_mb = [l / (1024.0 * 1024.0) for l in data_lost]
 
-    # bandwidth in bytes/s -> MB/s for the estimated values
+    # Estimated bandwidth in bytes/s -> MB/s
     bw_estimates_mbs = []
     for bw in bw_estimates:
         if bw is not None:
-            bw_estimates_mbs.append(bw / (1024.0*1024.0))
+            bw_estimates_mbs.append(bw / (1024.0 * 1024.0))
 
     fig, axs = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle("QUIC Metrics Overview", fontsize=16)
@@ -284,7 +284,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
         ax_data.plot(times_cc_s, data_acked_mb, label='Data Acked (MB)', color='green')
     if times_cc_s and data_lost_mb:
         ax_data.plot(times_cc_s, data_lost_mb, label='Data Lost (MB)', color='red')
-    # Mark timeouts
+    # Mark timeout events
     for t_s in timeout_s:
         ax_data.axvline(t_s, color='orange', linestyle='--')
     ax_data.set_title("Data Over Time")
@@ -293,13 +293,13 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     ax_data.legend()
     ax_data.grid(True)
 
-    # Subplot 3: Congestion Control metrics
+    # Subplot 3: Congestion Control
     ax_cc = axs[1, 0]
     if times_cc_s and cwnd_kb:
         ax_cc.plot(times_cc_s, cwnd_kb, label='CWND (KB)', color='purple')
     if plot_bytes_in_flight and times_cc_s and bif_kb:
         ax_cc.plot(times_cc_s, bif_kb, label='Bytes in Flight (KB)', color='brown')
-    # For ssthresh, synchronize using times_cc[0] as the base
+    # Synchronize ssthresh times using the base time from times_cc
     if ssthresh_list:
         base_time = times_cc[0] if times_cc else 0
         ssthresh_times_s = [ (t - base_time) / 1_000_000.0 for t in [tup[0] for tup in ssthresh_list] ]
@@ -315,9 +315,30 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     ax_bw = axs[1, 1]
     if times_bw_s and bw_estimates_mbs:
         ax_bw.plot(times_bw_s, bw_estimates_mbs, label='Estimated BW (MB/s)', linestyle='-')
-    # Plot the real bandwidth (computed from the differences in data_acked)
-    if real_bw_times and real_bw:
-        ax_bw.plot(real_bw_times, real_bw, label='Real BW (MB/s)', linestyle='--', color='orange')
+    
+    # Smooth the real BW data (moving average) with window size 5
+    window_size = 5
+    if len(real_bw) >= window_size:
+        real_bw_smoothed = np.convolve(real_bw, np.ones(window_size)/window_size, mode='same')
+    else:
+        real_bw_smoothed = real_bw
+
+    # Plot real bandwidth as points (markers only)
+    if real_bw_times and real_bw_smoothed:
+        ax_bw.plot(real_bw_times, real_bw_smoothed, label='Real BW (MB/s, smoothed)', 
+                   linestyle='None', marker='o', color='orange')
+
+        # Create an inset axes to zoom into the region between 0 and average real BW
+        avg_real_bw = np.mean(real_bw_smoothed)
+        axins = inset_axes(ax_bw, width="30%", height="30%", loc='upper right')
+        axins.plot(real_bw_times, real_bw_smoothed, linestyle='None', marker='o', color='orange')
+        axins.set_ylim(0, avg_real_bw * 1.2)  # Zoom region from 0 to 1.2 * average
+        # Optionally, set the x-limits to show a subset of interest; here we use the full range
+        axins.set_xlim(min(real_bw_times), max(real_bw_times))
+        axins.set_xticklabels([])
+        axins.set_yticklabels([])
+        mark_inset(ax_bw, axins, loc1=2, loc2=4, fc="none", ec="0.5")
+
     ax_bw.set_title("Bandwidth Estimation Over Time")
     ax_bw.set_xlabel("Time (s)")
     ax_bw.set_ylabel("Bandwidth (MB/s)")
@@ -331,6 +352,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
         print(f"Plot saved to {save_path}")
 
     plt.show()
+
 
 
 ###############################################################################
