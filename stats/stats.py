@@ -2,7 +2,7 @@ import os
 import json
 import argparse
 import math
-import statistics  # <-- ADDED FOR STD DEV
+import statistics 
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -14,6 +14,27 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
 ###############################################################################
 #                            Data Extraction Functions                        #
 ###############################################################################
+
+def extract_cca_name(qlog_data):
+    """
+    Scans the qlog events and returns the CCA name (in uppercase)
+    if an event with "CCA set to <name>" is found.
+    """
+    events = qlog_data.get("traces", [{}])[0].get("events", [])
+    for event in events:
+        if len(event) >= 4:
+            category = event[1]
+            event_type = event[2]
+            event_data = event[3]
+            if category == "transport" and event_type == "transport_state_update":
+                update_val = event_data.get("update", "")
+                if "CCA set to" in update_val:
+                    # the format is "CCA set to <cca_name>"
+                    parts = update_val.split()
+                    if len(parts) >= 4:
+                        cca = parts[3]
+                        return cca.upper()
+    return None
 
 def extract_rtt_metrics(qlog_data):
     """
@@ -42,7 +63,7 @@ def extract_rtt_metrics(qlog_data):
     return times_rtt, latest_rtts, min_rtts, smoothed_rtts
 
 
-def extract_congestion_metrics(qlog_data):
+def extract_congestion_metrics(qlog_data, rtt_data=None):
     """
     Extract congestion-related data from qlog_data.
 
@@ -154,15 +175,37 @@ def extract_congestion_metrics(qlog_data):
     # The throughput is calculated as the change in acked bytes divided by the time difference.
     # We then convert bytes per second to MB/s.
     for i in range(1, len(times_cc)):
-        dt = (times_cc[i] - times_cc[i - 1]) / 1_000_000.0  # Convert microseconds to seconds
-        if dt > 0:
-            delta_acked = data_acked[i] - data_acked[i - 1]
-            bw_bytes_per_s = delta_acked / dt
-            bw_mbs = bw_bytes_per_s / (1024.0 * 1024.0)
-            real_bw.append(bw_mbs)
-            # Use the midpoint of the time interval (normalized to seconds from the start)
-            mid_time = ((times_cc[i] + times_cc[i - 1]) / 2 - times_cc[0]) / 1_000_000.0
-            real_bw_times.append(mid_time)
+        dt = (times_cc[i] - times_cc[i - 1]) / 1_000_000.0  # seconds
+        if dt <= 0:
+            continue
+
+        # Determine the midpoint time (in microseconds) of the current interval
+        mid_time = (times_cc[i] + times_cc[i - 1]) / 2
+
+        # If RTT data is provided, only take this sample if dt > RTT.
+        if rtt_data is not None:
+            times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
+            rtt_value = None
+            # Find the latest RTT measurement taken before mid_time.
+            for j in range(len(times_rtt)):
+                if times_rtt[j] > mid_time:
+                    break
+                # Prefer the smoothed RTT if available, else use the latest RTT.
+                rtt_value = smoothed_rtts[j] if smoothed_rtts[j] is not None else latest_rtts[j]
+            if rtt_value is not None:
+                rtt_sec = rtt_value / 1_000_000.0  # convert from microseconds to seconds
+            else:
+                rtt_sec = 0  # if no RTT measurement is available, do not filter
+            if dt <= rtt_sec:
+                continue  # skip this sample because dt is not greater than the RTT
+
+        delta_acked = data_acked[i] - data_acked[i - 1]
+        bw_bytes_per_s = delta_acked / dt
+        bw_mbs = bw_bytes_per_s / (1024.0 * 1024.0)
+        real_bw.append(bw_mbs)
+        # Normalize the midpoint time (to seconds from the start of times_cc)
+        norm_mid_time = (mid_time - times_cc[0]) / 1_000_000.0
+        real_bw_times.append(norm_mid_time)
 
     return (times_cc, data_sent, data_acked, data_lost,
             cwnd_values, bif_values, ssthresh_list,
@@ -319,28 +362,10 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     if times_bw_s and bw_estimates_mbs:
         ax_bw.plot(times_bw_s, bw_estimates_mbs, label='Estimated BW (MB/s)', linestyle='-')
     
-    # Smooth the real BW data using a moving average filter with window size 5
-    window_size = 5
-    if len(real_bw) >= window_size:
-        real_bw_smoothed = np.convolve(real_bw, np.ones(window_size)/window_size, mode='same')
-    else:
-        real_bw_smoothed = np.array(real_bw)
-    
-    # Filter out values that are above 1.1x the average of the smoothed real BW.
-    # Points above that threshold will not be shown.
-    if len(real_bw_smoothed) > 0:
-        avg_real_bw = np.mean(real_bw_smoothed)
-        threshold = avg_real_bw * 1.1
-        mask = real_bw_smoothed <= threshold
-        real_bw_filtered = real_bw_smoothed[mask]
-        real_bw_times_filtered = np.array(real_bw_times)[mask]
-    else:
-        real_bw_filtered = real_bw_smoothed
-        real_bw_times_filtered = np.array(real_bw_times)
-    
-    # Plot the filtered real BW as points (markers only, no connecting line)
-    if len(real_bw_times_filtered) > 0 and len(real_bw_filtered) > 0:
-        ax_bw.plot(real_bw_times_filtered, real_bw_filtered, label='Real BW (MB/s)', 
+    # Instead of smoothing every 5 samples, we now plot the instantaneous real BW
+    # that was sampled only if dt > corresponding RTT.
+    if real_bw and real_bw_times:
+        ax_bw.plot(real_bw_times, real_bw, label='Real BW (MB/s)', 
                    linestyle='None', marker='.', color='orange')
     
     ax_bw.set_title("Bandwidth Estimation Over Time")
@@ -434,7 +459,6 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
 
     ############################################################################
     # 4) Throughput (MB/s) = acked_bytes / total_time_s
-    #    (Only a single final measure => no std dev here)
     ############################################################################
     if total_time_s > 0:
         throughput_mbps = (final_acked / (1024.0 * 1024.0)) / total_time_s
@@ -442,7 +466,7 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
         throughput_mbps = math.nan
 
     ############################################################################
-    # 5) Goodput (MB/s), similarly only one final measure
+    # 5) Goodput (MB/s)
     ############################################################################
     if total_time_s > 0:
         good_bytes = final_acked - final_lost
@@ -519,9 +543,6 @@ def print_summary_metrics(metrics):
     goodput_str      = format_speed(metrics['goodput_mbps'])
 
     # Standard deviations for BW, RTT, CWND
-    # We'll just keep them in the same units as the averages:
-    #   BW: MB/s (or KB/s), RTT: ms, CWND: KB
-    #   If there's a good reason to convert, do so accordingly.
     if not math.isnan(metrics['std_bw_mbps']):
         std_bw_str = format_speed(metrics['std_bw_mbps'])
     else:
@@ -537,32 +558,23 @@ def print_summary_metrics(metrics):
     else:
         std_cwnd_str = "NaN"
 
-    # Others
     loss_rate_str    = f"{metrics['loss_rate_percent']:.2f} %"
     avg_cwnd_str     = f"{metrics['avg_cwnd_kb']:.2f} KB"
     retransmissions  = f"{metrics['num_retransmissions']} #"
     avg_rtt_str      = f"{metrics['avg_rtt_ms']:.2f} ms"
     tx_time_str      = f"{metrics['total_time_s']:.2f} s"
 
-
-    # Print them out
     print(f"{'Average BW:':30s}{avg_bw_str:>15s}")
     print(f"{'Std Dev BW:':30s}{std_bw_str:>15s}")              
-
     print(f"{'Throughput:':30s}{throughput_str:>15s}")
     print(f"{'Goodput:':30s}{goodput_str:>15s}")
-
     print(f"{'Average CWND:':30s}{avg_cwnd_str:>15s}")
     print(f"{'Std Dev CWND:':30s}{std_cwnd_str:>15s}")          
-
     print(f"{'Average RTT:':30s}{avg_rtt_str:>15s}")
     print(f"{'Std Dev RTT:':30s}{std_rtt_str:>15s}")            
-
     print(f"{'Loss Rate:':30s}{loss_rate_str:>15s}")
     print(f"{'Retransmissions:':30s}{retransmissions:>15s}")
     print(f"{'Duration:':30s}{tx_time_str:>15s}")
-
-
     print("------------------------------------------------------------")
 
 
@@ -587,9 +599,9 @@ def main():
     with open(qlog_path, 'r') as file:
         qlog_data = json.load(file)
 
-    # Extract data
+    # Extract RTT and other data
     rtt_data = extract_rtt_metrics(qlog_data)
-    cc_data = extract_congestion_metrics(qlog_data)
+    cc_data = extract_congestion_metrics(qlog_data, rtt_data=rtt_data)
     bw_data = extract_bandwidth_metrics(qlog_data)
 
     # Compute summary stats (including std dev)
