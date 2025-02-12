@@ -7,6 +7,10 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
+import numpy as np
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
+
+
 ###############################################################################
 #                            Data Extraction Functions                        #
 ###############################################################################
