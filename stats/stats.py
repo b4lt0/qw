@@ -328,7 +328,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
         real_bw_smoothed = real_bw
 
     # Plot real bandwidth as points (markers only)
-    if real_bw_times and real_bw_smoothed:
+    if len(real_bw_times) > 0 and len(real_bw_smoothed) > 0:
         ax_bw.plot(real_bw_times, real_bw_smoothed, label='Real BW (MB/s, smoothed)', 
                    linestyle='None', marker='o', color='orange')
 
