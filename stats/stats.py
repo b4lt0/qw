@@ -216,9 +216,10 @@ def compute_real_bw(rtt_data, cc_data):
 
     for i, t_rtt in enumerate(times_rtt):
         # Choose RTT value: use smoothed if available, else latest
-        if smoothed_rtts[i] is not None:
-            rtt_val = smoothed_rtts[i]
-        elif latest_rtts[i] is not None:
+        # if smoothed_rtts[i] is not None:
+        #     rtt_val = smoothed_rtts[i]
+        # el
+        if latest_rtts[i] is not None:
             rtt_val = latest_rtts[i]
         else:
             continue  # skip if no RTT value available
