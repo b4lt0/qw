@@ -189,7 +189,7 @@ def extract_bandwidth_metrics(qlog_data):
 #                          New Real Bandwidth Computation                     #
 ###############################################################################
 
-def compute_real_bw(rtt_data, cc_data):
+def compute_sampled_bw(rtt_data, cc_data):
     """
     For each RTT event, compute the "real bandwidth" sample as:
     
@@ -201,8 +201,8 @@ def compute_real_bw(rtt_data, cc_data):
     (in seconds) relative to the first congestion control event.
     
     Returns:
-        real_bw_times (list of float): Normalized sample times (seconds)
-        real_bw_samples (list of float): Real bandwidth samples (in MB/s)
+        sampled_bw_times (list of float): Normalized sample times (seconds)
+        bw_samples (list of float): Real bandwidth samples (in MB/s)
     """
     times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
     times_cc, data_sent, data_acked, data_lost, _, _, _, _, _, _ = cc_data
@@ -211,8 +211,8 @@ def compute_real_bw(rtt_data, cc_data):
     times_cc_arr = np.array(times_cc)
     data_acked_arr = np.array(data_acked)
 
-    real_bw_samples = []
-    real_bw_times = []
+    bw_samples = []
+    sampled_bw_times = []
 
     for i, t_rtt in enumerate(times_rtt):
         # Choose RTT value: use smoothed if available, else latest
@@ -242,15 +242,17 @@ def compute_real_bw(rtt_data, cc_data):
         bw_bytes_per_sec = delta_acked / RTT_sec
         bw_mbs = bw_bytes_per_sec / (1024.0 * 1024.0)
 
-        # Use the midpoint of the interval as the sample time
-        sample_time = (t_start + t_end) / 2.0
-        real_bw_samples.append(bw_mbs)
-        real_bw_times.append(sample_time)
+       # Use the start of the RTT interval as the sample time.
+        # Note: This assigns the entire bandwidth measurement to the beginning of the RTT period.
+        # While it may align better with the estimated bandwidth timestamps, it doesn't represent the average over the RTT.
+        sample_time = t_start
+        bw_samples.append(bw_mbs)
+        sampled_bw_times.append(sample_time)
 
     # Normalize sample times relative to the first congestion control event
     base_time = times_cc[0] if times_cc else 0
-    real_bw_times_norm = [(t - base_time) / 1e6 for t in real_bw_times]
-    return real_bw_times_norm, real_bw_samples
+    sampled_bw_times_norm = [(t - base_time) / 1e6 for t in sampled_bw_times]
+    return sampled_bw_times_norm, bw_samples
 
 
 ###############################################################################
@@ -267,9 +269,11 @@ def normalize_times(times_us):
     return [(t - start_time) / 1e6 for t in times_us]
 
 
-def plot_all_subplots(rtt_data, cc_data, bw_data, real_bw_data=None,
-                      plot_bytes_in_flight=False,
-                      save_path=None):
+def plot_all_subplots(rtt_data, cc_data, bw_data,
+                        sampled_bw_data,
+                        cca_name,
+                        plot_bytes_in_flight=False,
+                        save_path=None):
     """
     Generates a 2x2 plot of:
       - RTT over time
@@ -282,7 +286,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, real_bw_data=None,
       - cc_data: (times_cc, data_sent, data_acked, data_lost, cwnd_values, bif_values, ssthresh_list,
                   timeouts, timeout_counts, lost_event_count)
       - bw_data: (times_bw, bw_estimates)
-      - real_bw_data: (real_bw_times, real_bw_samples) computed by compute_real_bw()
+      - sampled_bw_data: (sampled_bw_times, bw_samples) computed by compute_sampled_bw()
       - plot_bytes_in_flight: if True, also plot the bytes in flight.
     """
     times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
@@ -317,7 +321,8 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, real_bw_data=None,
     bw_estimates_mbs = [bw / (1024.0 * 1024.0) for bw in bw_estimates if bw is not None]
 
     fig, axs = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle("QUIC Metrics Overview", fontsize=16)
+    
+    fig.suptitle("QUIC "+cca_name+" Overview", fontsize=16)
 
     # Subplot 1: RTT
     ax_rtt = axs[0, 0]
@@ -372,9 +377,9 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, real_bw_data=None,
         ax_bw.plot(times_bw_s, bw_estimates_mbs, label='Estimated BW (MB/s)',marker='.', linestyle='-', color='blue')
     
     # If provided, plot the real BW samples (bytes acked per RTT divided by RTT)
-    if real_bw_data is not None:
-        real_bw_times, real_bw_samples = real_bw_data
-        ax_bw.plot(real_bw_times, real_bw_samples, label='Sampled BW (MB/s)', linestyle='-', marker='.', color='orange')
+    if sampled_bw_data is not None:
+        sampled_bw_times, bw_samples = sampled_bw_data
+        ax_bw.plot(sampled_bw_times, bw_samples, label='Sampled BW (MB/s)', linestyle='-', marker='.', color='orange')
 
     # Here we assume that the sample index (from 0 to N-1) is the same as 'step_'.
     num_samples = len(bw_estimates_mbs)
@@ -387,7 +392,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, real_bw_data=None,
     # Plot the coefficient against the bandwidth sample times
     # We assume times_bw_s has the same number of elements as bw_estimates_mbs.
     ax_bw.plot(times_bw_s, coef_values, label='Low Pass Filter Coef',
-               linestyle=':', marker='o', color='green')
+               linestyle=':', marker='.', color='olive')
     
     ax_bw.set_title("Bandwidth Estimation Over Time")
     ax_bw.set_xlabel("Time (s)")
@@ -554,18 +559,21 @@ def main():
     bw_data = extract_bandwidth_metrics(qlog_data)
 
     # Compute real bandwidth samples (bytes acked over one RTT divided by RTT)
-    real_bw_data = compute_real_bw(rtt_data, cc_data)
+    sampled_bw_data = compute_sampled_bw(rtt_data, cc_data)
 
     # Compute and print summary metrics
     metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
     print_summary_metrics(metrics)
+
+    cca_name=extract_cca_name(qlog_data)
 
     # Plot all subplots (the fourth subplot shows both the estimated BW and the real BW samples)
     plot_all_subplots(
         rtt_data,
         cc_data,
         bw_data,
-        real_bw_data=real_bw_data,
+        sampled_bw_data,
+        cca_name,
         plot_bytes_in_flight=args.plot_bytes_in_flight,
         save_path=args.output
     )
