@@ -374,7 +374,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, real_bw_data=None,
     # If provided, plot the real BW samples (bytes acked per RTT divided by RTT)
     if real_bw_data is not None:
         real_bw_times, real_bw_samples = real_bw_data
-        ax_bw.plot(real_bw_times, real_bw_samples, label='Real BW (MB/s)', linestyle='-', marker='.', color='orange')
+        ax_bw.plot(real_bw_times, real_bw_samples, label='Sampled BW (MB/s)', linestyle='-', marker='.', color='orange')
     
     ax_bw.set_title("Bandwidth Estimation Over Time")
     ax_bw.set_xlabel("Time (s)")

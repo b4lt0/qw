@@ -338,14 +338,32 @@ namespace quic {
     // uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
     //     return ((7 * a) + b) >> 3;
     // }
+    // uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
+    //     constexpr float T = 10.0; 
+    //     float s = static_cast<float>(step_);
+    //     float coef = std::tanh(s / T) * (6.0 / 8.0);
+    //     float filtered = (coef * static_cast<float>(a)) + ((1.0 - coef ) * static_cast<float>(b));
+        
+    //     return static_cast<uint32_t>(filtered);
+    //     }
+
+
     uint32_t Westwood::westwoodLowPassFilter(uint32_t a, uint32_t b) {
-        constexpr float T = 10.0; 
+        // Parameters to shape the sigmoid:
+        constexpr float center = 10.0f;  // Midpoint: sigmoid(center) = 0.5
+        constexpr float scale  = 2.0f;   // Controls the steepness of the sigmoid
+
         float s = static_cast<float>(step_);
-        float coef = std::tanh(s / T) * (6.0 / 8.0);
-        float filtered = (coef * static_cast<float>(a)) + ((1.0 - coef ) * static_cast<float>(b));
+        // Compute the sigmoid function:
+        float sigmoid = 1.0f / (1.0f + std::exp(-((s - center) / scale)));
+        // Optionally scale the coefficient as in the original code:
+        float coef = sigmoid * (6.0f / 8.0f);
+
+        float filtered = (coef * static_cast<float>(a)) + ((1.0f - coef) * static_cast<float>(b));
         
         return static_cast<uint32_t>(filtered);
-        }
+    }
+
 
     // calculates the number of bytes that can be sent without exceeding the congestion window
     uint64_t Westwood::getWritableBytes() const noexcept {
