@@ -357,7 +357,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
         ax_bw.plot(sampled_bw_times, bw_samples, label='Sampled BW (MB/s)', marker='.', linestyle='-', color='orange')
 
     # Optionally plot the filter coefficient (for illustration)
-    if cca_name="WESTWOOD":
+    if cca_name=="WESTWOOD":
         num_samples = len(bw_estimates_mbs)
         s_values = np.arange(num_samples)
         center = 20.0
