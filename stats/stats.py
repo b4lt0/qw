@@ -186,7 +186,7 @@ def extract_bandwidth_metrics(qlog_data):
 
 
 ###############################################################################
-#                      New Real (Sampled) Bandwidth Computation                 #
+#                      New Real (Sampled) Bandwidth Computation               #
 ###############################################################################
 
 def compute_sampled_bw(rtt_data, cc_data, common_base):
@@ -356,7 +356,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
         sampled_bw_times, bw_samples = sampled_bw_data
         ax_bw.plot(sampled_bw_times, bw_samples, label='Sampled BW (MB/s)', marker='.', linestyle='-', color='orange')
 
-    # Optionally plot the filter coefficient (for illustration)
+    # Optionally plot the filter coefficient
     if cca_name=="WESTWOOD":
         num_samples = len(bw_estimates_mbs)
         s_values = np.arange(num_samples)
@@ -473,7 +473,7 @@ def print_summary_metrics(metrics):
     Pretty-print the summary metrics.
     """
     print("------------------------------------------------------------")
-    print("Summary of Key Metrics:")
+    print("Summary Metrics:")
 
     avg_bw_str       = format_speed(metrics['avg_bw_mbps'])
     throughput_str   = format_speed(metrics['throughput_mbps'])
