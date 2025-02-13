@@ -375,6 +375,19 @@ def plot_all_subplots(rtt_data, cc_data, bw_data, real_bw_data=None,
     if real_bw_data is not None:
         real_bw_times, real_bw_samples = real_bw_data
         ax_bw.plot(real_bw_times, real_bw_samples, label='Sampled BW (MB/s)', linestyle='-', marker='.', color='orange')
+
+    # Here we assume that the sample index (from 0 to N-1) is the same as 'step_'.
+    num_samples = len(bw_estimates_mbs)
+    s_values = np.arange(num_samples)  # step_ values: 0, 1, 2, ..., num_samples-1
+    center = 20.0    # Midpoint: sigmoid(center) = 0.5
+    scale  = 0.5    # Controls steepness; lower values yield a steeper sigmoid.
+    factor = 6.0 / 8.0  # Scaling factor applied after the sigmoid.
+    coef_values = factor * (1.0 / (1.0 + np.exp(-((s_values - center) / scale))))
+    
+    # Plot the coefficient against the bandwidth sample times
+    # We assume times_bw_s has the same number of elements as bw_estimates_mbs.
+    ax_bw.plot(times_bw_s, coef_values, label='Low Pass Filter Coef',
+               linestyle=':', marker='o', color='green')
     
     ax_bw.set_title("Bandwidth Estimation Over Time")
     ax_bw.set_xlabel("Time (s)")
