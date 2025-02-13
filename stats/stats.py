@@ -186,28 +186,28 @@ def extract_bandwidth_metrics(qlog_data):
 
 
 ###############################################################################
-#                          New Real Bandwidth Computation                     #
+#                      New Real (Sampled) Bandwidth Computation                 #
 ###############################################################################
 
-def compute_sampled_bw(rtt_data, cc_data):
+def compute_sampled_bw(rtt_data, cc_data, common_base):
     """
     For each RTT event, compute the "real bandwidth" sample as:
     
       BW = (data_acked at time t+RTT - data_acked at time t) / RTT
 
     where t is the RTT event time (in microseconds) and RTT is taken from
-    the smoothed RTT if available (otherwise the latest RTT) and converted to seconds.
-    The sample is timestamped at the midpoint of [t, t+RTT] and times are normalized
-    (in seconds) relative to the first congestion control event.
+    the latest RTT (if available) and converted to seconds.
+    
+    In this version, the sample is timestamped at the start of the RTT interval.
+    Finally, the sample times are normalized using the provided common_base time.
     
     Returns:
-        sampled_bw_times (list of float): Normalized sample times (seconds)
+        sampled_bw_times_norm (list of float): Normalized sample times (seconds)
         bw_samples (list of float): Real bandwidth samples (in MB/s)
     """
     times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
     times_cc, data_sent, data_acked, data_lost, _, _, _, _, _, _ = cc_data
 
-    # Convert times_cc and data_acked to numpy arrays for interpolation
     times_cc_arr = np.array(times_cc)
     data_acked_arr = np.array(data_acked)
 
@@ -215,43 +215,32 @@ def compute_sampled_bw(rtt_data, cc_data):
     sampled_bw_times = []
 
     for i, t_rtt in enumerate(times_rtt):
-        # Choose RTT value: use smoothed if available, else latest
-        # if smoothed_rtts[i] is not None:
-        #     rtt_val = smoothed_rtts[i]
-        # el
         if latest_rtts[i] is not None:
             rtt_val = latest_rtts[i]
         else:
-            continue  # skip if no RTT value available
+            continue
 
-        RTT_sec = rtt_val / 1e6  # Convert RTT from microseconds to seconds
-
+        RTT_sec = rtt_val / 1e6
         t_start = t_rtt
-        t_end = t_rtt + RTT_sec * 1e6  # t_end in microseconds
+        t_end = t_rtt + RTT_sec * 1e6
 
-        # If the end of the RTT interval exceeds our available congestion control events, skip it.
         if t_end > times_cc_arr[-1]:
             continue
 
-        # Interpolate cumulative data_acked at t_start and t_end
         acked_start = np.interp(t_start, times_cc_arr, data_acked_arr)
         acked_end = np.interp(t_end, times_cc_arr, data_acked_arr)
         delta_acked = acked_end - acked_start
 
-        # Compute instantaneous bandwidth in bytes/s and convert to MB/s
         bw_bytes_per_sec = delta_acked / RTT_sec
         bw_mbs = bw_bytes_per_sec / (1024.0 * 1024.0)
 
-       # Use the start of the RTT interval as the sample time.
-        # Note: This assigns the entire bandwidth measurement to the beginning of the RTT period.
-        # While it may align better with the estimated bandwidth timestamps, it doesn't represent the average over the RTT.
+        # Timestamp the sample at the start of the RTT interval
         sample_time = t_start
         bw_samples.append(bw_mbs)
         sampled_bw_times.append(sample_time)
 
-    # Normalize sample times relative to the first congestion control event
-    base_time = times_cc[0] if times_cc else 0
-    sampled_bw_times_norm = [(t - base_time) / 1e6 for t in sampled_bw_times]
+    # Normalize using the common base time
+    sampled_bw_times_norm = [(t - common_base) / 1e6 for t in sampled_bw_times]
     return sampled_bw_times_norm, bw_samples
 
 
@@ -259,35 +248,29 @@ def compute_sampled_bw(rtt_data, cc_data):
 #                                Plot Functions                               #
 ###############################################################################
 
-def normalize_times(times_us):
+def normalize_times(times_us, common_base):
     """
-    Convert times from microseconds to seconds, normalized to the first timestamp.
+    Convert times from microseconds to seconds, normalized using the provided common_base.
     """
     if not times_us:
         return []
-    start_time = times_us[0]
-    return [(t - start_time) / 1e6 for t in times_us]
+    return [(t - common_base) / 1e6 for t in times_us]
 
 
 def plot_all_subplots(rtt_data, cc_data, bw_data,
-                        sampled_bw_data,
-                        cca_name,
-                        plot_bytes_in_flight=False,
-                        save_path=None):
+                      sampled_bw_data,
+                      cca_name,
+                      common_base,
+                      plot_bytes_in_flight=False,
+                      save_path=None):
     """
     Generates a 2x2 plot of:
       - RTT over time
       - Data (sent, acked, lost) over time
       - Congestion control (CWND, bytes in flight) over time
-      - Bandwidth: estimated bandwidth and real bandwidth (computed as bytes acked per RTT divided by RTT)
+      - Bandwidth: estimated bandwidth and real bandwidth (sampled bandwidth)
     
-    Parameters:
-      - rtt_data: (times_rtt, latest_rtts, min_rtts, smoothed_rtts)
-      - cc_data: (times_cc, data_sent, data_acked, data_lost, cwnd_values, bif_values, ssthresh_list,
-                  timeouts, timeout_counts, lost_event_count)
-      - bw_data: (times_bw, bw_estimates)
-      - sampled_bw_data: (sampled_bw_times, bw_samples) computed by compute_sampled_bw()
-      - plot_bytes_in_flight: if True, also plot the bytes in flight.
+    All time axes are normalized using the common_base.
     """
     times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
     (times_cc, data_sent, data_acked, data_lost,
@@ -295,34 +278,28 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
      timeouts, timeout_counts, lost_event_count) = cc_data
     times_bw, bw_estimates = bw_data
 
-    # Normalize times for plotting
-    times_rtt_s = normalize_times(times_rtt)
-    times_cc_s = normalize_times(times_cc)
-    times_bw_s = normalize_times(times_bw)
-    timeout_s = normalize_times(timeouts)
+    # Normalize times using the common base time
+    times_rtt_s = normalize_times(times_rtt, common_base)
+    times_cc_s = normalize_times(times_cc, common_base)
+    times_bw_s = normalize_times(times_bw, common_base)
+    timeout_s = normalize_times(timeouts, common_base)
 
-    # Convert units for plotting:
-    # RTT: microseconds -> ms
+    # Convert units for plotting
     latest_rtts_ms = [r / 1000.0 for r in latest_rtts if r is not None]
     min_rtts_ms = [r / 1000.0 for r in min_rtts if r is not None]
     smoothed_rtts_ms = [r / 1000.0 for r in smoothed_rtts if r is not None]
 
-    # CWND: bytes -> KB
     cwnd_kb = [c / 1024.0 for c in cwnd_values]
-    # Bytes in flight: bytes -> KB
     bif_kb = [b / 1024.0 for b in bif_values]
 
-    # Data: bytes -> MB
     data_sent_mb = [s / (1024.0 * 1024.0) for s in data_sent]
     data_acked_mb = [a / (1024.0 * 1024.0) for a in data_acked]
     data_lost_mb = [l / (1024.0 * 1024.0) for l in data_lost]
 
-    # Estimated bandwidth: bytes/s -> MB/s
     bw_estimates_mbs = [bw / (1024.0 * 1024.0) for bw in bw_estimates if bw is not None]
 
     fig, axs = plt.subplots(2, 2, figsize=(14, 10))
-    
-    fig.suptitle("QUIC "+cca_name+" Overview", fontsize=16)
+    fig.suptitle("QUIC " + cca_name + " Overview", fontsize=16)
 
     # Subplot 1: RTT
     ax_rtt = axs[0, 0]
@@ -361,8 +338,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     if plot_bytes_in_flight and times_cc_s and bif_kb:
         ax_cc.plot(times_cc_s, bif_kb, label='Bytes in Flight (KB)', color='brown')
     if ssthresh_list:
-        base_time = times_cc[0] if times_cc else 0
-        ssthresh_times_s = [(t - base_time) / 1e6 for t, _ in ssthresh_list]
+        ssthresh_times_s = normalize_times([t for t, _ in ssthresh_list], common_base)
         ssthresh_values_kb = [val / 1024.0 for _, val in ssthresh_list]
         ax_cc.step(ssthresh_times_s, ssthresh_values_kb, label='SSThresh (KB)', color='red', linestyle='--')
     ax_cc.set_title("Congestion Control Over Time")
@@ -374,27 +350,23 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     # Subplot 4: Bandwidth
     ax_bw = axs[1, 1]
     if times_bw_s and bw_estimates_mbs:
-        ax_bw.plot(times_bw_s, bw_estimates_mbs, label='Estimated BW (MB/s)',marker='.', linestyle='-', color='blue')
+        ax_bw.plot(times_bw_s, bw_estimates_mbs, label='Estimated BW (MB/s)', marker='.', linestyle='-', color='blue')
     
-    # If provided, plot the real BW samples (bytes acked per RTT divided by RTT)
     if sampled_bw_data is not None:
         sampled_bw_times, bw_samples = sampled_bw_data
-        ax_bw.plot(sampled_bw_times, bw_samples, label='Sampled BW (MB/s)', linestyle='-', marker='.', color='orange')
+        ax_bw.plot(sampled_bw_times, bw_samples, label='Sampled BW (MB/s)', marker='.', linestyle='-', color='orange')
 
-    # Here we assume that the sample index (from 0 to N-1) is the same as 'step_'.
-    num_samples = len(bw_estimates_mbs)
-    s_values = np.arange(num_samples)  # step_ values: 0, 1, 2, ..., num_samples-1
-    center = 20.0    # Midpoint: sigmoid(center) = 0.5
-    scale  = 0.5    # Controls steepness; lower values yield a steeper sigmoid.
-    factor = 6.0 / 8.0  # Scaling factor applied after the sigmoid.
-    coef_values = factor * (1.0 / (1.0 + np.exp(-((s_values - center) / scale))))
+    # Optionally plot the filter coefficient (for illustration)
+    if cca_name="WESTWOOD":
+        num_samples = len(bw_estimates_mbs)
+        s_values = np.arange(num_samples)
+        center = 20.0
+        scale  = 0.5
+        factor = 6.0 / 8.0
+        coef_values = factor * (1.0 / (1.0 + np.exp(-((s_values - center) / scale))))
+        ax_bw.plot(times_bw_s, coef_values, label='Low Pass Filter Coef', marker='.', linestyle=':', color='olive')
     
-    # Plot the coefficient against the bandwidth sample times
-    # We assume times_bw_s has the same number of elements as bw_estimates_mbs.
-    ax_bw.plot(times_bw_s, coef_values, label='Low Pass Filter Coef',
-               linestyle=':', marker='.', color='olive')
-    
-    ax_bw.set_title("Bandwidth Estimation Over Time")
+    ax_bw.set_title("Bandwidth Over Time")
     ax_bw.set_xlabel("Time (s)")
     ax_bw.set_ylabel("Bandwidth (MB/s)")
     ax_bw.legend()
@@ -422,7 +394,6 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
      timeouts, timeout_counts, lost_event_count) = cc_data
     times_bw, bw_estimates = bw_data
 
-    # RTT metrics
     valid_smoothed = [r for r in smoothed_rtts if r is not None]
     if valid_smoothed:
         avg_rtt_us = statistics.mean(valid_smoothed)
@@ -438,7 +409,6 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
     avg_rtt_ms = avg_rtt_us / 1000.0
     std_rtt_ms = std_rtt_us / 1000.0
 
-    # Bandwidth metrics
     valid_bw = [bw for bw in bw_estimates if bw is not None]
     if valid_bw:
         bw_mbps_vals = [bw / (1024.0 * 1024.0) for bw in valid_bw]
@@ -448,7 +418,6 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
         avg_bw_mbps = math.nan
         std_bw_mbps = math.nan
 
-    # Time and data metrics for throughput/goodput
     if len(times_cc) > 1:
         total_time_s = (times_cc[-1] - times_cc[0]) / 1e6
     else:
@@ -558,22 +527,31 @@ def main():
     cc_data = extract_congestion_metrics(qlog_data)
     bw_data = extract_bandwidth_metrics(qlog_data)
 
-    # Compute real bandwidth samples (bytes acked over one RTT divided by RTT)
-    sampled_bw_data = compute_sampled_bw(rtt_data, cc_data)
+    # Determine a common base time for normalization
+    base_candidates = []
+    if bw_data[0]:
+        base_candidates.append(bw_data[0][0])
+    if cc_data[0]:
+        base_candidates.append(cc_data[0][0])
+    common_base = min(base_candidates) if base_candidates else 0
+
+    # Compute sampled bandwidth using the common base
+    sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
 
     # Compute and print summary metrics
     metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
     print_summary_metrics(metrics)
 
-    cca_name=extract_cca_name(qlog_data)
+    cca_name = extract_cca_name(qlog_data) or ""
 
-    # Plot all subplots (the fourth subplot shows both the estimated BW and the real BW samples)
+    # Plot all subplots with a common base time for normalization
     plot_all_subplots(
         rtt_data,
         cc_data,
         bw_data,
         sampled_bw_data,
         cca_name,
+        common_base,
         plot_bytes_in_flight=args.plot_bytes_in_flight,
         save_path=args.output
     )
