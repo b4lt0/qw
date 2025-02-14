@@ -360,8 +360,8 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     if cca_name=="WESTWOOD":
         num_samples = len(bw_estimates_mbs)
         s_values = np.arange(num_samples)
-        center = 20.0
-        scale  = 0.5
+        center = 16.0
+        scale  = 1.0
         factor = 6.0 / 8.0
         coef_values = factor * (1.0 / (1.0 + np.exp(-((s_values - center) / scale))))
         ax_bw.plot(times_bw_s, coef_values, label='Low Pass Filter Coef', marker='.', linestyle=':', color='olive')
