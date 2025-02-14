@@ -235,7 +235,7 @@ def compute_sampled_bw(rtt_data, cc_data, common_base):
         bw_mbs = bw_bytes_per_sec / (1024.0 * 1024.0)
 
         # Timestamp the sample at the start of the RTT interval
-        sample_time = t_start
+        sample_time = t_end
         bw_samples.append(bw_mbs)
         sampled_bw_times.append(sample_time)
 
