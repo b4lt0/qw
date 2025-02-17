@@ -318,8 +318,8 @@ namespace quic {
         // if no previous estimate, use (bytesAckedInCurrentInterval_/delta)
         // else filter previous estimate with new sample
         uint64_t bw_ns_est = (bandwidthNewestEstimate_ == 0 && bandwidthEstimate_ == 0)
-                            ? bytesAckedInCurrentInterval_ / delta
-                            : westwoodLowPassFilter(bandwidthNewestEstimate_, bytesAckedInCurrentInterval_ / delta);
+                            ? bytesAckedInCurrentInterval_ / (delta/1e6)
+                            : westwoodLowPassFilter(bandwidthNewestEstimate_, bytesAckedInCurrentInterval_ / (delta/1e6));
         // update instantaneous bandwidth estimate
         bandwidthNewestEstimate_ = bw_ns_est;
         // update long-term smoothed bandwidth estimate
