@@ -194,6 +194,8 @@ namespace quic {
             updateWestwoodBandwidthEstimates(delta); // update bandwidth estimate
             rttWindowStartTime_ = now; // reset measurement interval start
             bytesAckedInCurrentInterval_ = 0; // reset acked bytes count
+            VLOG(1) << "Bw estimate " << bandwidthEstimate_ ;
+            VLOG(1) << "CWND bytes  " << cwndBytes_;
         }
 
         // calculates the one way delay variation as difference between the interarrival timne and the relative sending time
