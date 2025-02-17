@@ -211,7 +211,7 @@ namespace quic {
         uint64_t rttMinUs = rttSampler_.minRtt().count();
         if(owd > rttMinUs*0.3 || owdv > 0.3*owd) {
             ssthresh_ = std::max(
-                static_cast<uint64_t>((bandwidthEstimate_ * rttMinUs)),
+                static_cast<uint64_t>((bandwidthEstimate_ * rttMinUs / 1.0e6)),
                                  2*quicConnectionState_.udpSendPacketLen);
             cwndBytes_ = ssthresh_;
         }
@@ -262,10 +262,16 @@ namespace quic {
             // set ssthresh based on estomated bandwidth and minimum rtt
             uint64_t rttMinUs = rttSampler_.minRtt().count(); // current min RTT
             ssthresh_ = std::max(
-                static_cast<uint64_t>((bandwidthEstimate_ * rttMinUs)),
+                static_cast<uint64_t>((bandwidthEstimate_ * rttMinUs/1e6)),
                                  2*quicConnectionState_.udpSendPacketLen);
             // set cwnd to current ssthresh
             cwndBytes_ = ssthresh_;
+            cwndBytes_ = boundedCwnd(
+                cwndBytes_,
+                quicConnectionState_.udpSendPacketLen,
+                quicConnectionState_.transportSettings.maxCwndInMss,
+                quicConnectionState_.transportSettings.minCwndInMss);
+                
             // LOG
             VLOG(10) << __func__ << " exit slow start, ssthresh=" << ssthresh_
                      << " packetNum=" << *loss.largestLostPacketNum
@@ -298,6 +304,11 @@ namespace quic {
             }
             // reset congestion window to minimum value
             cwndBytes_ = quicConnectionState_.transportSettings.minCwndInMss * quicConnectionState_.udpSendPacketLen;
+            cwndBytes_ = boundedCwnd(
+                cwndBytes_,
+                quicConnectionState_.udpSendPacketLen,
+                quicConnectionState_.transportSettings.maxCwndInMss,
+                quicConnectionState_.transportSettings.minCwndInMss);
         }
     }
 
