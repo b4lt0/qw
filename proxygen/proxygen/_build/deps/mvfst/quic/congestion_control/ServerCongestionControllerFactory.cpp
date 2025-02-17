@@ -17,6 +17,7 @@
 #include <quic/congestion_control/NewReno.h>
 #include <quic/congestion_control/QuicCubic.h>
 #include <quic/congestion_control/Westwood.h>
+#include <quic/congestion_control/WestwoodOWD.h>
 #include <quic/congestion_control/StaticCwndCongestionController.h>
 
 #include <memory>
@@ -41,6 +42,9 @@ ServerCongestionControllerFactory::makeCongestionController(
       break;
     case CongestionControlType::Westwood:
       congestionController = std::make_unique<Westwood>(conn);
+      break;
+    case CongestionControlType::WestwoodOWD:
+      congestionController = std::make_unique<WestwoodOWD>(conn);
       break;
     case CongestionControlType::Copa:
       congestionController = std::make_unique<Copa>(conn);

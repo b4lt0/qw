@@ -42,12 +42,21 @@ struct WestwoodStats {
   uint64_t ssthresh;
 };
 
+struct WestwoodOWDStats {
+  uint64_t bw_est;
+  uint64_t rtt_min;
+  uint64_t ssthresh;
+  uint64_t owd;
+  uint64_t owdv;
+};
+
 union CongestionControllerStats {
   struct BbrStats bbrStats;
   struct Bbr2Stats bbr2Stats;
   struct CopaStats copaStats;
   struct CubicStats cubicStats;
   struct WestwoodStats westwoodStats;
+  struct WestwoodOWDStats westwoodOWDStats;
 };
 
 struct CongestionController {

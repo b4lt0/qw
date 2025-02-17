@@ -20,6 +20,7 @@
 #include <quic/congestion_control/NewReno.h>
 #include <quic/congestion_control/QuicCubic.h>
 #include <quic/congestion_control/Westwood.h>
+#include <quic/congestion_control/WestwoodOWD.h>
 #include <quic/state/StateData.h>
 
 #include <folly/ExceptionWrapper.h>

@@ -18,6 +18,7 @@ add_library(
   NewReno.cpp
   QuicCubic.cpp
   Westwood.cpp
+  WestwoodOWD.cpp
   ServerCongestionControllerFactory.cpp
   SimulatedTBF.cpp
   StaticCwndCongestionController.cpp

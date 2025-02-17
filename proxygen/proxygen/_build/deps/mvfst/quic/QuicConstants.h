@@ -429,6 +429,7 @@ constexpr DurationRep kDefaultWriteLimitRttFraction = 25;
 // Congestion control:
 constexpr std::string_view kCongestionControlCubicStr = "cubic";
 constexpr std::string_view kCongestionControlWestwoodStr = "westwood";
+constexpr std::string_view kCongestionControlWestwoodOWDStr = "westwood_owd";
 constexpr std::string_view kCongestionControlBbrStr = "bbr";
 constexpr std::string_view kCongestionControlBbr2Str = "bbr2";
 constexpr std::string_view kCongestionControlBbrTestingStr = "bbr_testing";
@@ -442,6 +443,7 @@ constexpr DurationRep kPersistentCongestionThreshold = 3;
 enum class CongestionControlType : uint8_t {
   Cubic,
   Westwood,
+  WestwoodOWD,
   NewReno,
   Copa,
   Copa2,

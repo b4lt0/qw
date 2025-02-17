@@ -17,6 +17,7 @@
 #include <quic/congestion_control/CongestionControllerFactory.h>
 #include <quic/congestion_control/QuicCubic.h>
 #include <quic/congestion_control/Westwood.h>
+#include <quic/congestion_control/WestwoodOWD.h>
 
 #include <quic/flowcontrol/QuicFlowController.h>
 

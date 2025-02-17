@@ -18,6 +18,8 @@ std::string_view congestionControlTypeToString(CongestionControlType type) {
       return kCongestionControlCubicStr;
     case CongestionControlType::Westwood:
       return kCongestionControlWestwoodStr;
+    case CongestionControlType::WestwoodOWD:
+      return kCongestionControlWestwoodOWDStr;
     case CongestionControlType::BBR:
       return kCongestionControlBbrStr;
     case CongestionControlType::BBR2:
@@ -47,6 +49,8 @@ std::optional<CongestionControlType> congestionControlStrToType(
     return quic::CongestionControlType::Cubic;
   } else if (str == kCongestionControlWestwoodStr) {
     return quic::CongestionControlType::Westwood;
+  } else if (str == kCongestionControlWestwoodOWDStr) {
+    return quic::CongestionControlType::WestwoodOWD;
   } else if (str == kCongestionControlBbr2Str) {
     return quic::CongestionControlType::BBR2;
   } else if (str == kCongestionControlBbrStr) {
