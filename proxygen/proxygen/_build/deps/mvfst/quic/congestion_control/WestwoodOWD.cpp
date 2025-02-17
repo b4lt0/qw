@@ -66,6 +66,7 @@ namespace quic {
                 latestRttSample_(std::chrono::microseconds(kWestwoodOWDInitialRttMicroseconds)), // set initial last RTT
                 bandwidthNewestEstimate_(0), // bandwidth newest estimate
                 bandwidthEstimate_(0), // smoothed bandwidth estimate
+                step_(0),
                 bytesAckedInCurrentInterval_(0), // bytes acked during current RTT window
                 ssthresh_(std::numeric_limits<uint64_t>::max()), // slow start threshold at max
                 rttSampler_(std::chrono::seconds(kWestwoodOWDRttExpirationSeconds)),
@@ -191,6 +192,8 @@ namespace quic {
         
         // if elapsed time exceeds max(lastRTT, minimal threshold), recalc bandwidth
         if (delta > std::max((uint64_t)latestRttSample_.count(), kWestwoodOWDMinRttMicroseconds)) {
+
+            step_++;
             updateWestwoodBandwidthEstimates(delta); // update bandwidth estimate
             rttWindowStartTime_ = now; // reset measurement interval start
             bytesAckedInCurrentInterval_ = 0; // reset acked bytes count
