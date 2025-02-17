@@ -203,7 +203,7 @@ def compute_sampled_bw(rtt_data, cc_data, common_base):
     
     Returns:
         sampled_bw_times_norm (list of float): Normalized sample times (seconds)
-        bw_samples (list of float): Real bandwidth samples (in MB/s)
+        bw_samples (list of float): Real bandwidth samples (in Mb/s)
     """
     times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
     times_cc, data_sent, data_acked, data_lost, _, _, _, _, _, _ = cc_data
@@ -232,7 +232,8 @@ def compute_sampled_bw(rtt_data, cc_data, common_base):
         delta_acked = acked_end - acked_start
 
         bw_bytes_per_sec = delta_acked / RTT_sec
-        bw_mbs = bw_bytes_per_sec / (1024.0 * 1024.0)
+        # Convert bytes/s to Mb/s: multiply by 8 then divide by (1024*1024)
+        bw_mbs = (bw_bytes_per_sec * 8) / (1024.0 * 1024.0)
 
         # Timestamp the sample at the start of the RTT interval
         sample_time = t_end
@@ -271,6 +272,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
       - Bandwidth: estimated bandwidth and real bandwidth (sampled bandwidth)
     
     All time axes are normalized using the common_base.
+    Units have been converted to Mb, Kb, and Mb/s.
     """
     times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
     (times_cc, data_sent, data_acked, data_lost,
@@ -289,14 +291,17 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     min_rtts_ms = [r / 1000.0 for r in min_rtts if r is not None]
     smoothed_rtts_ms = [r / 1000.0 for r in smoothed_rtts if r is not None]
 
-    cwnd_kb = [c / 1024.0 for c in cwnd_values]
-    bif_kb = [b / 1024.0 for b in bif_values]
+    # Convert CWND and bytes in flight to kilobits (Kb)
+    cwnd_kbit = [c / 128.0 for c in cwnd_values]
+    bif_kbit = [b / 128.0 for b in bif_values]
 
-    data_sent_mb = [s / (1024.0 * 1024.0) for s in data_sent]
-    data_acked_mb = [a / (1024.0 * 1024.0) for a in data_acked]
-    data_lost_mb = [l / (1024.0 * 1024.0) for l in data_lost]
+    # Convert data values to megabits (Mb)
+    data_sent_mbit = [s * 8 / (1024.0 * 1024.0) for s in data_sent]
+    data_acked_mbit = [a * 8 / (1024.0 * 1024.0) for a in data_acked]
+    data_lost_mbit = [l * 8 / (1024.0 * 1024.0) for l in data_lost]
 
-    bw_estimates_mbs = [bw / (1024.0 * 1024.0) for bw in bw_estimates if bw is not None]
+    # Convert bandwidth estimates from bytes/s to Mb/s
+    bw_estimates_mbs = [bw * 8 / (1024.0 * 1024.0) for bw in bw_estimates if bw is not None]
 
     fig, axs = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle("QUIC " + cca_name + " Overview", fontsize=16)
@@ -317,44 +322,45 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
 
     # Subplot 2: Data
     ax_data = axs[0, 1]
-    if times_cc_s and data_sent_mb:
-        ax_data.plot(times_cc_s, data_sent_mb, label='Data Sent (MB)', color='blue')
-    if times_cc_s and data_acked_mb:
-        ax_data.plot(times_cc_s, data_acked_mb, label='Data Acked (MB)', color='green')
-    if times_cc_s and data_lost_mb:
-        ax_data.plot(times_cc_s, data_lost_mb, label='Data Lost (MB)', color='red')
+    if times_cc_s and data_sent_mbit:
+        ax_data.plot(times_cc_s, data_sent_mbit, label='Data Sent (Mb)', color='blue')
+    if times_cc_s and data_acked_mbit:
+        ax_data.plot(times_cc_s, data_acked_mbit, label='Data Acked (Mb)', color='green')
+    if times_cc_s and data_lost_mbit:
+        ax_data.plot(times_cc_s, data_lost_mbit, label='Data Lost (Mb)', color='red')
     for t_s in timeout_s:
         ax_data.axvline(t_s, color='orange', linestyle='--')
     ax_data.set_title("Data Over Time")
     ax_data.set_xlabel("Time (s)")
-    ax_data.set_ylabel("Data (MB)")
+    ax_data.set_ylabel("Data (Mb)")
     ax_data.legend()
     ax_data.grid(True)
 
     # Subplot 3: Congestion Control
     ax_cc = axs[1, 0]
-    if times_cc_s and cwnd_kb:
-        ax_cc.plot(times_cc_s, cwnd_kb, label='CWND (KB)', color='purple')
-    if plot_bytes_in_flight and times_cc_s and bif_kb:
-        ax_cc.plot(times_cc_s, bif_kb, label='Bytes in Flight (KB)', color='brown')
+    if times_cc_s and cwnd_kbit:
+        ax_cc.plot(times_cc_s, cwnd_kbit, label='CWND (Kb)', color='purple')
+    if plot_bytes_in_flight and times_cc_s and bif_kbit:
+        ax_cc.plot(times_cc_s, bif_kbit, label='Bytes in Flight (Kb)', color='brown')
     if ssthresh_list:
         ssthresh_times_s = normalize_times([t for t, _ in ssthresh_list], common_base)
-        ssthresh_values_kb = [val / 1024.0 for _, val in ssthresh_list]
-        ax_cc.step(ssthresh_times_s, ssthresh_values_kb, label='SSThresh (KB)', color='red', linestyle='--')
+        # Convert ssthresh from bytes to kilobits
+        ssthresh_values_kbit = [val * 8 / 1024.0 for _, val in ssthresh_list]
+        ax_cc.step(ssthresh_times_s, ssthresh_values_kbit, label='SSThresh (Kb)', color='red', linestyle='--')
     ax_cc.set_title("Congestion Control Over Time")
     ax_cc.set_xlabel("Time (s)")
-    ax_cc.set_ylabel("CWND (KB)")
+    ax_cc.set_ylabel("CWND (Kb)")
     ax_cc.legend()
     ax_cc.grid(True)
 
     # Subplot 4: Bandwidth
     ax_bw = axs[1, 1]
     if times_bw_s and bw_estimates_mbs:
-        ax_bw.plot(times_bw_s, bw_estimates_mbs, label='Estimated BW (MB/s)', marker='.', linestyle='-', color='blue')
+        ax_bw.plot(times_bw_s, bw_estimates_mbs, label='Estimated BW (Mb/s)', marker='.', linestyle='-', color='blue')
     
     if sampled_bw_data is not None:
         sampled_bw_times, bw_samples = sampled_bw_data
-        ax_bw.plot(sampled_bw_times, bw_samples, label='Sampled BW (MB/s)', marker='.', linestyle='-', color='orange')
+        ax_bw.plot(sampled_bw_times, bw_samples, label='Sampled BW (Mb/s)', marker='.', linestyle='-', color='orange')
 
     # Optionally plot the filter coefficient
     if cca_name=="WESTWOOD":
@@ -368,7 +374,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     
     ax_bw.set_title("Bandwidth Over Time")
     ax_bw.set_xlabel("Time (s)")
-    ax_bw.set_ylabel("Bandwidth (MB/s)")
+    ax_bw.set_ylabel("Bandwidth (Mb/s)")
     ax_bw.legend()
     ax_bw.grid(True)
 
@@ -411,7 +417,8 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
 
     valid_bw = [bw for bw in bw_estimates if bw is not None]
     if valid_bw:
-        bw_mbps_vals = [bw / (1024.0 * 1024.0) for bw in valid_bw]
+        # Convert bytes/s to Mb/s
+        bw_mbps_vals = [bw * 8 / (1024.0 * 1024.0) for bw in valid_bw]
         avg_bw_mbps = statistics.mean(bw_mbps_vals)
         std_bw_mbps = statistics.stdev(bw_mbps_vals) if len(bw_mbps_vals) > 1 else 0.0
     else:
@@ -426,19 +433,21 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
     final_acked = data_acked[-1] if data_acked else 0
     final_lost = data_lost[-1] if data_lost else 0
 
-    throughput_mbps = (final_acked / (1024.0 * 1024.0)) / total_time_s if total_time_s > 0 else math.nan
+    # Throughput and goodput in Mb/s (note the multiplication by 8)
+    throughput_mbps = (final_acked * 8 / (1024.0 * 1024.0)) / total_time_s if total_time_s > 0 else math.nan
     good_bytes = final_acked - final_lost if final_acked >= final_lost else 0
-    goodput_mbps = (good_bytes / (1024.0 * 1024.0)) / total_time_s if total_time_s > 0 else 0.0
+    goodput_mbps = (good_bytes * 8 / (1024.0 * 1024.0)) / total_time_s if total_time_s > 0 else 0.0
 
     loss_rate_percent = (final_lost / float(final_sent)) * 100.0 if final_sent > 0 else 0.0
 
     if cwnd_values:
-        cwnd_kb_values = [c / 1024.0 for c in cwnd_values]
-        avg_cwnd_kb = statistics.mean(cwnd_kb_values)
-        std_cwnd_kb = statistics.stdev(cwnd_kb_values) if len(cwnd_kb_values) > 1 else 0.0
+        # Convert cwnd from bytes to kilobits
+        cwnd_kbit_values = [c / 128.0 for c in cwnd_values]
+        avg_cwnd_kbit = statistics.mean(cwnd_kbit_values)
+        std_cwnd_kbit = statistics.stdev(cwnd_kbit_values) if len(cwnd_kbit_values) > 1 else 0.0
     else:
-        avg_cwnd_kb = math.nan
-        std_cwnd_kb = math.nan
+        avg_cwnd_kbit = math.nan
+        std_cwnd_kbit = math.nan
 
     return {
         'avg_rtt_ms': avg_rtt_ms,
@@ -448,8 +457,8 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
         'throughput_mbps': throughput_mbps,
         'goodput_mbps': goodput_mbps,
         'loss_rate_percent': loss_rate_percent,
-        'avg_cwnd_kb': avg_cwnd_kb,
-        'std_cwnd_kb': std_cwnd_kb,
+        'avg_cwnd_kbit': avg_cwnd_kbit,
+        'std_cwnd_kbit': std_cwnd_kbit,
         'num_retransmissions': lost_event_count,
         'total_time_s': total_time_s
     }
@@ -457,15 +466,15 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
 
 def format_speed(mbps_value):
     """
-    Format a speed value in MB/s as a string in KB/s if below 1 MB/s, otherwise in MB/s.
+    Format a speed value in Mb/s as a string in Kb/s if below 1 Mb/s, otherwise in Mb/s.
     """
     if math.isnan(mbps_value):
         return "NaN"
     if mbps_value < 1.0:
         kbps = mbps_value * 1024.0
-        return f"{kbps:.2f} KB/s"
+        return f"{kbps:.2f} Kb/s"
     else:
-        return f"{mbps_value:.2f} MB/s"
+        return f"{mbps_value:.2f} Mb/s"
 
 
 def print_summary_metrics(metrics):
@@ -480,9 +489,9 @@ def print_summary_metrics(metrics):
     goodput_str      = format_speed(metrics['goodput_mbps'])
     std_bw_str       = format_speed(metrics['std_bw_mbps']) if not math.isnan(metrics['std_bw_mbps']) else "NaN"
     std_rtt_str      = f"{metrics['std_rtt_ms']:.2f} ms" if not math.isnan(metrics['std_rtt_ms']) else "NaN"
-    std_cwnd_str     = f"{metrics['std_cwnd_kb']:.2f} KB" if not math.isnan(metrics['std_cwnd_kb']) else "NaN"
+    std_cwnd_str     = f"{metrics['std_cwnd_kbit']:.2f} Kb" if not math.isnan(metrics['std_cwnd_kbit']) else "NaN"
     loss_rate_str    = f"{metrics['loss_rate_percent']:.2f} %"
-    avg_cwnd_str     = f"{metrics['avg_cwnd_kb']:.2f} KB"
+    avg_cwnd_str     = f"{metrics['avg_cwnd_kbit']:.2f} Kb"
     retransmissions  = f"{metrics['num_retransmissions']} #"
     avg_rtt_str      = f"{metrics['avg_rtt_ms']:.2f} ms"
     tx_time_str      = f"{metrics['total_time_s']:.2f} s"
