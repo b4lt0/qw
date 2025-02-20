@@ -71,8 +71,10 @@ namespace quic {
                 ssthresh_(std::numeric_limits<uint64_t>::max()), // slow start threshold at max
                 rttSampler_(std::chrono::seconds(kWestwoodOWDRttExpirationSeconds)),
                 cwndBytes_(conn.transportSettings.initCwndInMss * conn.udpSendPacketLen),
-                owdv(0), // one way delay variation
-                owd(0), //one way delay
+                deltaT_(0), // inter-departure time
+                deltat_(0), // inter-arrival-time
+                owdv_(0), // one way delay variation
+                owd_(0), //one way delay
                 packetSendDeltaTimeStampsMap() /* stores the send time of each packet relative to the previous one */ {
                 //congestion window (properly bounded)
                 cwndBytes_ = boundedCwnd(
@@ -108,7 +110,7 @@ namespace quic {
         addAndCheckOverflow(
                 quicConnectionState_.lossState.inflightBytes, packet.metadata.encodedSize);
         // calculates the sending time of a packet relative to the previous one, or to connection start time, if it's the first packet
-        uint64_t deltaT = (isFirstPacket())
+        deltaT_ = (isFirstPacket())
                          ? std::chrono::duration_cast<std::chrono::microseconds>(
                             Clock::now() - quicConnectionState_.connectionTime).count()
                          : std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - T_prev).count();
@@ -118,7 +120,7 @@ namespace quic {
         // stores the relative sending time for all the packets sent
         packetSendDeltaTimeStampsMap.emplace(
             packet.packet.header.getPacketSequenceNum(), 
-            deltaT);
+            deltaT_);
         // LOG
         VLOG(10) << __func__ << " writable=" << getWritableBytes()
                  << " cwnd=" << cwndBytes_
@@ -192,7 +194,6 @@ namespace quic {
         
         // if elapsed time exceeds max(lastRTT, minimal threshold), recalc bandwidth
         if (delta > std::max((uint64_t)latestRttSample_.count(), kWestwoodOWDMinRttMicroseconds)) {
-
             step_++;
             updateWestwoodBandwidthEstimates(delta); // update bandwidth estimate
             rttWindowStartTime_ = now; // reset measurement interval start
@@ -200,19 +201,47 @@ namespace quic {
             VLOG(1) << "Bw estimate " << bandwidthEstimate_ ;
             VLOG(1) << "CWND bytes  " << cwndBytes_;
         }
+        TimePoint timestamp_owd;
 
         // calculates the one way delay variation as difference between the interarrival timne and the relative sending time
         // calculates the one way delay as sum of one way delay variation samples
-        if(packet.receiveRelativeTimeStampUsec.has_value() && 
-            packetSendDeltaTimeStampsMap.find(packet.packetNum) != packetSendDeltaTimeStampsMap.end()) {
-            uint64_t deltat = packet.receiveRelativeTimeStampUsec.value().count();
-            owdv = deltat - packetSendDeltaTimeStampsMap[packet.packetNum];
-            owd = owd + owdv;
+        timestamp_owd = Clock::now();
+        if(packet.receiveRelativeTimeStampUsec.has_value()) {
+            deltat_ = packet.receiveRelativeTimeStampUsec.value().count();
+            owdv_ = deltat_ - packetSendDeltaTimeStampsMap[packet.packetNum];
+            owd_ = owd_ + owdv_;
         }
 
-        // if owdv or owd are greater than a threshold, then adjust the congestion window with the Westwood mechanism
+        // logs
+        std::string directory = "/qw/server/logs/westwood_owd/owd/";
+        auto duration = quicConnectionState_.connectionTime.time_since_epoch();
+        auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+        auto time_owd = timestamp_owd.time_since_epoch();
+        auto time_owd_us = std::chrono::duration_cast<std::chrono::microseconds>(time_owd).count();
+        std::ostringstream filename;
+        std::ostringstream stats_filename;
+        filename << directory << "one_way_delay_" << milliseconds <<".txt";
+        stats_filename << directory << "one_way_delay_stats_" << milliseconds << ".txt" ;
+        std::ofstream outfile(filename.str(), std::ios::app);
+        std::ofstream stats_outfile(stats_filename.str(), std::ios::app);
+        if (outfile.is_open()) {
+            outfile <<"Inter-departure time: " << deltaT_ << std::endl;
+            outfile <<"Inter-arrival time: " << deltat_ << std::endl;
+            outfile << "One way delay variation: " << owdv_ << std::endl;
+            outfile << "One way delay: " << owd_ << std::endl;
+            outfile.close();
+        } else {
+            std::cerr << "Error in opening file." << std::endl;
+        }
+        if (stats_outfile.is_open()) {
+            stats_outfile << time_owd_us << " " << owd_ << " " << owdv_ << std::endl;
+        } else {
+            std::cerr << "Error in opening file." << std::endl;
+        }
+
+        // if owdv_ or owd_ are greater than a threshold, then adjust the congestion window with the Westwood mechanism
         uint64_t rttMinUs = rttSampler_.minRtt().count();
-        if(owd > rttMinUs*0.3 || owdv > 0.3*owd) {
+        if(owd_ > rttMinUs*0.3 || owdv_ > 0.3*owd_) {
             ssthresh_ = std::max(
                 static_cast<uint64_t>((bandwidthEstimate_ * rttMinUs / 1.0e6)),
                                  2*quicConnectionState_.udpSendPacketLen);
@@ -397,12 +426,12 @@ namespace quic {
 
     // returns the current one way delay
     uint64_t WestwoodOWD::getOneWayDelay() const noexcept {
-        return owd;
+        return owd_;
     }
 
     // returns the current one way delay variation
     uint64_t WestwoodOWD::getOneWayDelayVariation() const noexcept {
-        return owdv;
+        return owdv_;
     }
 
     // determines if the algorithm is currently in slow start phase
@@ -424,8 +453,8 @@ namespace quic {
         stats.westwoodOWDStats.bw_est = bandwidthEstimate_;
         stats.westwoodOWDStats.rtt_min = rttSampler_.minRtt().count();
         stats.westwoodOWDStats.ssthresh = ssthresh_;
-        stats.westwoodOWDStats.owd = owd;
-        stats.westwoodOWDStats.owdv = owdv;
+        stats.westwoodOWDStats.owd_ = owd_;
+        stats.westwoodOWDStats.owdv_ = owdv_;
     }
 
     // placeholders for application-limited behavior, which is not implòemented

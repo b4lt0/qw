@@ -84,8 +84,10 @@ private:
   uint64_t ssthresh_;
   WestwoodOWDRttSampler rttSampler_; 
   uint64_t cwndBytes_;
-  uint64_t owdv;
-  uint64_t owd;
+  uint64_t deltaT_;
+  uint64_t deltat_;
+  uint64_t owdv_;
+  uint64_t owd_;
   folly::Optional<TimePoint> endOfRecovery_;
   folly::F14FastMap<quic::PacketNum, uint64_t> packetSendDeltaTimeStampsMap;
 };
