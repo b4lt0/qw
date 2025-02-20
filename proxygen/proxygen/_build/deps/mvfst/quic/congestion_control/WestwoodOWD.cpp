@@ -456,8 +456,8 @@ namespace quic {
         stats.westwoodOWDStats.bw_est = bandwidthEstimate_;
         stats.westwoodOWDStats.rtt_min = rttSampler_.minRtt().count();
         stats.westwoodOWDStats.ssthresh = ssthresh_;
-        stats.westwoodOWDStats.owd_ = owd_;
-        stats.westwoodOWDStats.owdv_ = owdv_;
+        stats.westwoodOWDStats.owd = owd_;
+        stats.westwoodOWDStats.owdv = owdv_;
     }
 
     // placeholders for application-limited behavior, which is not implòemented
