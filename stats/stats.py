@@ -161,9 +161,13 @@ def extract_congestion_metrics(qlog_data):
             timeouts, timeout_counts, lost_event_count)
 
 
-def extract_bandwidth_metrics(qlog_data):
+def extract_bandwidth_metrics(qlog_data, cca_name=None):
     """
     Extract bandwidth estimation data from qlog_data.
+
+    If the CCA name is BBR2, normalize the logged bandwidth by computing:
+        normalized_bw = bandwidth_bytes / (bandwidth_interval * 1e-6)
+    Otherwise, simply use the logged bandwidth_bytes value.
 
     Returns:
         times_bw (list of float): Timestamps (microseconds)
@@ -180,8 +184,18 @@ def extract_bandwidth_metrics(qlog_data):
         if event[1] == 'bandwidth_est_update' and event[2] == 'bandwidth_est_update':
             event_time_us = float(event[0])
             times_bw.append(event_time_us)
-            bw_estimates.append(event[3].get('bandwidth_bytes', None))
-
+            event_data = event[3]
+            if cca_name and cca_name.upper() == "BBR2":
+                bw_bytes = event_data.get('bandwidth_bytes', None)
+                bw_interval = event_data.get('bandwidth_interval', None)
+                if bw_bytes is not None and bw_interval is not None and bw_interval > 0:
+                    # Normalize: divide by (interval in seconds)
+                    normalized_bw = bw_bytes / (bw_interval * 1e-6)
+                    bw_estimates.append(normalized_bw)
+                else:
+                    bw_estimates.append(None)
+            else:
+                bw_estimates.append(event_data.get('bandwidth_bytes', None))
     return times_bw, bw_estimates
 
 
@@ -531,10 +545,13 @@ def main():
     with open(qlog_path, 'r') as file:
         qlog_data = json.load(file)
 
+    # First extract the CCA name so that it can be used for bandwidth normalization.
+    cca_name = extract_cca_name(qlog_data) or ""
+
     # Extract data from qlog
     rtt_data = extract_rtt_metrics(qlog_data)
     cc_data = extract_congestion_metrics(qlog_data)
-    bw_data = extract_bandwidth_metrics(qlog_data)
+    bw_data = extract_bandwidth_metrics(qlog_data, cca_name)
 
     # Determine a common base time for normalization
     base_candidates = []
@@ -550,8 +567,6 @@ def main():
     # Compute and print summary metrics
     metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
     print_summary_metrics(metrics)
-
-    cca_name = extract_cca_name(qlog_data) or ""
 
     # Plot all subplots with a common base time for normalization
     plot_all_subplots(

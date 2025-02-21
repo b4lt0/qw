@@ -1,6 +1,5 @@
 import matplotlib
-import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import sys
 
@@ -43,5 +42,7 @@ plt.legend()
 
 plt.tight_layout()
 
-plt.savefig('grafico_owd.png')
-print("Grafico salvato come grafico_owd.png")
+plt.show()
+
+#plt.savefig('grafico_owd.png')
+#print("Grafico salvato come grafico_owd.png")
