@@ -20,7 +20,7 @@ ip="sudo /sbin/ip"
 # Set FORCE_FIXED_BURST to a fixed burst size in bytes.
 # For example, for 1024KBps with a 10ms delay a burst of ~104860 bytes works.
 # This will force the TBF to use a smaller burst even when bandwidth increases.
-FORCE_FIXED_BURST="104860"
+FORCE_FIXED_BURST="52000"
 
 # This function disables the NIC optimizations that interfere with the experiment
 # INPUT PARAMETER:
