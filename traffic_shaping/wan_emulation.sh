@@ -17,6 +17,11 @@ tc="sudo /sbin/tc"
 modprobe="sudo /sbin/modprobe"
 ip="sudo /sbin/ip"
 
+# Set FORCE_FIXED_BURST to a fixed burst size in bytes.
+# For example, for 1024KBps with a 10ms delay a burst of ~104860 bytes works.
+# This will force the TBF to use a smaller burst even when bandwidth increases.
+FORCE_FIXED_BURST="104860"
+
 # This function disables the NIC optimizations that interfere with the experiment
 # INPUT PARAMETER:
 # 1 : Device interface that receives the traffic: example eth0
@@ -50,20 +55,28 @@ function tc_egress_with_delay() {
    MTU=1000
    LIMIT=$((MTU * QUEUE)) # Queue length in bytes
 
+   # Use fixed burst if FORCE_FIXED_BURST is set, else calculate burst from BDP
+   if [ -n "$FORCE_FIXED_BURST" ]; then
+      BURST=$FORCE_FIXED_BURST
+   else
+      BURST=$((BDP_BYTES * 10))
+   fi
+
    echo "Applying egress bandwidth, delay, and loss on $DEV"
    echo "* Bandwidth: ${BRATE}kbit (${KBPS} KBps)"
    echo "* Delay: ${DELAY}ms"
    echo "* Loss: ${LOSS}%"
    echo "* Netem Queue Limit: ${LIMIT_PACKETS} packets"
 
-   # Add TBF as root qdisc for bandwidth control
+   # Add TBF as root qdisc for bandwidth control with fixed burst
    $tc qdisc add dev $DEV root handle 1: tbf rate ${BRATE}kbit \
-       minburst $MTU burst $((BDP_BYTES * 5)) limit $LIMIT
+       minburst $MTU burst ${BURST} limit $LIMIT
 
-   # Add NetEm as a child qdisc for delay, loss, with packet limit
+   # Add NetEm as a child qdisc for delay and loss
    $tc qdisc add dev $DEV parent 1:1 handle 10: netem \
        delay ${DELAY}ms loss ${LOSS}% limit ${LIMIT_PACKETS}
 }
+
 
 # This function removes both egress bandwidth control and delay
 # INPUT PARAMETER: 1 - Device interface (e.g., eno1)
@@ -242,19 +255,27 @@ function tc_ingress_with_delay() {
    $modprobe ifb
    $ip link set dev ifb1 up
 
-   # 2) Attach ingress qdisc on $DEV, and redirect all traffic to ifb1
+   # 2) Attach ingress qdisc on $DEV and redirect traffic to ifb1
    $tc qdisc add dev $DEV ingress
    $tc filter add dev $DEV parent ffff: protocol ip u32 match u32 0 0 \
        flowid 1:1 action mirred egress redirect dev ifb1
 
-   # 3) On ifb1, install TBF as root for bandwidth limiting
-   $tc qdisc add dev ifb1 root handle 1: tbf rate ${BRATE}kbit \
-       minburst $MTU burst $((BDP_BYTES * 5)) limit $LIMIT
+   # Use fixed burst if FORCE_FIXED_BURST is set, else calculate burst from BDP
+   if [ -n "$FORCE_FIXED_BURST" ]; then
+      BURST=$FORCE_FIXED_BURST
+   else
+      BURST=$((BDP_BYTES * 10))
+   fi
 
-   # 4) Attach netem as a child for delay + loss + queue limit
+   # 3) On ifb1, install TBF as root for bandwidth limiting with fixed burst
+   $tc qdisc add dev ifb1 root handle 1: tbf rate ${BRATE}kbit \
+       minburst $MTU burst ${BURST} limit $LIMIT
+
+   # 4) Attach netem as a child for delay and loss
    $tc qdisc add dev ifb1 parent 1:1 handle 10: netem \
        delay ${DELAY}ms loss ${LOSS}% limit ${LIMIT_PACKETS}
 }
+
 
 # This function removes both ingress bandwidth control, delay, and loss
 # INPUT PARAMETER:
