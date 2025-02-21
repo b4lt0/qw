@@ -58,7 +58,7 @@ function tc_egress_with_delay() {
 
    # Add TBF as root qdisc for bandwidth control
    $tc qdisc add dev $DEV root handle 1: tbf rate ${BRATE}kbit \
-       minburst $MTU burst $((BDP_BYTES * 10)) limit $LIMIT
+       minburst $MTU burst $((BDP_BYTES * 5)) limit $LIMIT
 
    # Add NetEm as a child qdisc for delay, loss, with packet limit
    $tc qdisc add dev $DEV parent 1:1 handle 10: netem \
@@ -249,7 +249,7 @@ function tc_ingress_with_delay() {
 
    # 3) On ifb1, install TBF as root for bandwidth limiting
    $tc qdisc add dev ifb1 root handle 1: tbf rate ${BRATE}kbit \
-       minburst $MTU burst $((BDP_BYTES * 10)) limit $LIMIT
+       minburst $MTU burst $((BDP_BYTES * 5)) limit $LIMIT
 
    # 4) Attach netem as a child for delay + loss + queue limit
    $tc qdisc add dev ifb1 parent 1:1 handle 10: netem \

@@ -1,9 +1,11 @@
 #!/bin/bash
 set -e
 
+#tc_bw_delay_both <DEV> <KBPS> <DELAY_MS> <LOSS_PERCENT> [QUEUE_KB] [LIMIT_PKTS]
+
 # start low
 ssh -o StrictHostKeyChecking=no balillus@10.73.0.20 \
-  "sudo /home/balillus/qw/traffic_shaping/wan_emulation.sh tc_bw_delay_both eno1 1024 10 0"
+  "sudo /home/balillus/qw/traffic_shaping/wan_emulation.sh tc_bw_delay_both eno1 1024 10 0 80 67"
 echo "Low bw started"
 
 # Start local HTTP client (50MB file) in background
@@ -19,7 +21,7 @@ start=$(date +%s)
 HQ50_PID=$!
 echo "done."
 
-sleep 5
+sleep 8
 
 #kill low
 ssh -o StrictHostKeyChecking=no balillus@10.73.0.20 \
@@ -31,10 +33,10 @@ end=$(date +%s)
 elapsed=$((end - start))
 echo "$elapsed s"
 ssh -o StrictHostKeyChecking=no balillus@10.73.0.20 \
-  "sudo /home/balillus/qw/traffic_shaping/wan_emulation.sh tc_bw_delay_both eno1 2048 10 0"
+  "sudo /home/balillus/qw/traffic_shaping/wan_emulation.sh tc_bw_delay_both eno1 2048 10 0 80 67"
 echo "High bw started"
 
-sleep 5
+sleep 8
 
 #kill high
 ssh -o StrictHostKeyChecking=no balillus@10.73.0.20 \
@@ -47,10 +49,10 @@ end=$(date +%s)
 elapsed=$((end - start))
 echo "$elapsed s"
 ssh -o StrictHostKeyChecking=no balillus@10.73.0.20 \
-  "sudo /home/balillus/qw/traffic_shaping/wan_emulation.sh tc_bw_delay_both eno1 1024 10 0"
+  "sudo /home/balillus/qw/traffic_shaping/wan_emulation.sh tc_bw_delay_both eno1 1024 10 0 80 67"
 echo "Low bw started"
 
-sleep 5
+sleep 8
 
 # kill low
 ssh -o StrictHostKeyChecking=no balillus@10.73.0.20 \
@@ -62,7 +64,7 @@ end=$(date +%s)
 elapsed=$((end - start))
 echo "$elapsed s"
 ssh -o StrictHostKeyChecking=no balillus@10.73.0.20 \
-  "sudo /home/balillus/qw/traffic_shaping/wan_emulation.sh tc_bw_delay_both eno1 2048 10 0"
+  "sudo /home/balillus/qw/traffic_shaping/wan_emulation.sh tc_bw_delay_both eno1 2048 10 0 80 67"
 echo "High bw started"
 
 
