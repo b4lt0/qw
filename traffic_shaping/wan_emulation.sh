@@ -418,6 +418,38 @@ function tc_bandwidth_both() {
          minburst $MTU burst ${BURST} limit ${LIMIT}
 }
 
+# This function updates the bandwidth limitation (TBF parameters) on both
+# egress and ingress traffic, while leaving the static delay/queue (netem)
+# configuration intact.
+#
+# INPUT PARAMETERS:
+#   1 : Device interface (e.g., eno1)
+#   2 : Bandwidth limit in kilobytes per second (KBps)
+#   3 : Queue size in KB for the TBF (e.g., 80)
+function tc_update_bandwidth_both() {
+    local DEV=$1
+    local KBPS=$2
+    local QUEUE_KB=$3
+
+    # Convert KBps to kbit/s (1 KBps ≈ 8 kbit/s)
+    local BRATE=$(( KBPS * 8 ))
+    local MTU=1000
+    local BURST=$(( MTU * 10 ))
+    local LIMIT=$(( MTU * QUEUE_KB ))
+
+    echo ">>> Updating bandwidth limitation on both ingress and egress for $DEV"
+    echo "    * Bandwidth: ${BRATE}kbit (${KBPS} KBps)"
+    echo "    * Queue size: ${QUEUE_KB}KB (limit: ${LIMIT} bytes)"
+
+    # Update the TBF qdisc on the egress side (which is at the root on $DEV)
+    $tc qdisc change dev $DEV root handle 1: tbf rate ${BRATE}kbit \
+         minburst $MTU burst ${BURST} limit ${LIMIT}
+
+    # Update the TBF qdisc on the ingress side (on ifb1)
+    $tc qdisc change dev ifb1 root handle 1: tbf rate ${BRATE}kbit \
+         minburst $MTU burst ${BURST} limit ${LIMIT}
+}
+
 
 # Finally, run the passed command.
 $@
