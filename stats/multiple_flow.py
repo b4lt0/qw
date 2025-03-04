@@ -272,7 +272,7 @@ def normalize_times(times_us, common_base):
     """
     if not times_us:
         return []
-    return [t / 1e6 for t in times_us]
+    return [(t - common_base) / 1e6 for t in times_us]
 
 
 def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=None):
@@ -364,14 +364,26 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
         bw_data = conn['bw_data']
         # Use actual timestamps instead of normalized ones (or you can keep using normalize_times if desired)
         times_bw_s = [t / 1e6 for t in bw_data[0]]
-        # Estimated Bandwidth in MB/s
-        bw_estimates_mbs = [bw / (1024.0 * 1024.0) if bw is not None else None for bw in bw_data[1]]
-        ax_bw.plot(times_bw_s, bw_estimates_mbs, label=f"{conn['cca_name']} Est BW", color=colors[i], linestyle='-')
+        # Estimated Bandwidth in Mbit/s
+        bw_estimates_mbps = [ (bw * 8) / (1024.0 * 1024.0) if bw is not None else None for bw in bw_data[1]]
+        ax_bw.plot(times_bw_s, bw_estimates_mbps, label=f"{conn['cca_name']} Est BW", color=colors[i], linestyle='-')
+
     ax_bw.set_title("Bandwidth Over Time")
     ax_bw.set_xlabel("Time (s)")
-    ax_bw.set_ylabel("Bandwidth (MB/s)")
+    ax_bw.set_ylabel("Bandwidth (Mb/s)")
     ax_bw.legend(fontsize='small')
     ax_bw.grid(True)
+
+    # --- Set x-axis limit to the end time of the first (shortest) connection ---
+    end_times = []
+    for conn in connections:
+        if conn['cc_data'][0]:
+            end_times.append(conn['cc_data'][0][-1] / 1e6)
+    if end_times:
+        global_end = min(end_times)
+        for ax in axs.flat:
+            ax.set_xlim(0, global_end)
+
 
     plt.tight_layout()
     if save_path:
@@ -384,16 +396,46 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
 #                      Computing & Printing Summary Metrics                   #
 ###############################################################################
 
-def compute_summary_metrics(rtt_data, cc_data, bw_data):
+def compute_summary_metrics(rtt_data, cc_data, bw_data, end_time_us=None):
     """
     Compute summary metrics (average RTT, average BW, throughput, goodput,
     loss rate, average cwnd, number of retransmissions) from the extracted data.
     """
-    times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
-    (times_cc, data_sent, data_acked, data_lost,
-     cwnd_values, bif_values, ssthresh_list,
-     timeouts, timeout_counts, lost_event_count) = cc_data
-    times_bw, bw_estimates = bw_data
+    # times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
+    # (times_cc, data_sent, data_acked, data_lost,
+    #  cwnd_values, bif_values, ssthresh_list,
+    #  timeouts, timeout_counts, lost_event_count) = cc_data
+    # times_bw, bw_estimates = bw_data
+
+    if end_time_us is not None:
+        # Filter congestion metrics arrays
+        times_cc, data_sent, data_acked, data_lost, cwnd_values, bif_values, ssthresh_list, timeouts, timeout_counts, lost_event_count = cc_data
+        indices = [i for i, t in enumerate(times_cc) if t <= end_time_us]
+        times_cc = [times_cc[i] for i in indices]
+        data_sent = [data_sent[i] for i in indices]
+        data_acked = [data_acked[i] for i in indices]
+        data_lost = [data_lost[i] for i in indices]
+        cwnd_values = [cwnd_values[i] for i in indices]
+        bif_values = [bif_values[i] for i in indices]
+        timeouts = [t for t in timeouts if t <= end_time_us]
+        cc_data = (times_cc, data_sent, data_acked, data_lost, cwnd_values, bif_values, ssthresh_list, timeouts, timeout_counts, lost_event_count)
+
+        # Filter RTT metrics arrays
+        times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
+        indices = [i for i, t in enumerate(times_rtt) if t <= end_time_us]
+        times_rtt = [times_rtt[i] for i in indices]
+        latest_rtts = [latest_rtts[i] for i in indices]
+        min_rtts = [min_rtts[i] for i in indices]
+        smoothed_rtts = [smoothed_rtts[i] for i in indices]
+        rtt_data = (times_rtt, latest_rtts, min_rtts, smoothed_rtts)
+
+        # Filter bandwidth metrics arrays
+        times_bw, bw_estimates = bw_data
+        indices = [i for i, t in enumerate(times_bw) if t <= end_time_us]
+        times_bw = [times_bw[i] for i in indices]
+        bw_estimates = [bw_estimates[i] for i in indices]
+        bw_data = (times_bw, bw_estimates)
+
 
     valid_smoothed = [r for r in smoothed_rtts if r is not None]
     if valid_smoothed:
@@ -530,7 +572,7 @@ def main():
     group.add_argument('--qlog-paths', nargs=4, type=str,
                        help="Paths to the 4 qlog files.")
     parser.add_argument('--cca', type=str, choices=['same', 'diff'], default='diff',
-                    help="CCA mode: 'same' to use the last 4 qlog files from the same folder, 'diff' to use one from each subdirectory (westwood+, newreno, cubic, bbr2).")
+                        help="CCA mode: 'same' to use the last 4 qlog files from the same folder, 'diff' to use one from each subdirectory (westwood+, newreno, cubic, bbr2).")
     parser.add_argument('--plot-bytes-in-flight', action='store_true', default=False,
                         help='Enable plotting of bytes in flight')
     parser.add_argument('--output', type=str, required=False,
@@ -565,9 +607,7 @@ def main():
                 sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
                 cca_name = extract_cca_name(qlog_data) or "Unknown"
 
-                metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
-                print(f"Summary Metrics for {qlog_path} ({cca_name}):")
-                print_summary_metrics(metrics)
+                # Removed individual summary metrics printing
 
                 connections.append({
                     'qlog_path': qlog_path,
@@ -577,7 +617,6 @@ def main():
                     'sampled_bw_data': sampled_bw_data,
                     'cca_name': cca_name,
                     'common_base': common_base,
-                    'metrics': metrics,
                 })
         else:
             required_subdirs = ['westwood+', 'newreno', 'cubic', 'bbr2']
@@ -606,9 +645,7 @@ def main():
                 sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
                 cca_name = extract_cca_name(qlog_data) or sub
 
-                metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
-                print(f"Summary Metrics for {qlog_path} ({cca_name}):")
-                print_summary_metrics(metrics)
+                # Removed individual summary metrics printing
 
                 connections.append({
                     'qlog_path': qlog_path,
@@ -618,12 +655,67 @@ def main():
                     'sampled_bw_data': sampled_bw_data,
                     'cca_name': cca_name,
                     'common_base': common_base,
-                    'metrics': metrics,
                 })
+    else:
+        # Handle the --qlog-paths option
+        for qlog_path in args.qlog_paths:
+            print(f"Using {qlog_path}")
+            with open(qlog_path, 'r') as file:
+                qlog_data = json.load(file)
 
+            rtt_data = extract_rtt_metrics(qlog_data)
+            cc_data = extract_congestion_metrics(qlog_data)
+            bw_data = extract_bandwidth_metrics(qlog_data)
+
+            base_candidates = []
+            if bw_data[0]:
+                base_candidates.append(bw_data[0][0])
+            if cc_data[0]:
+                base_candidates.append(cc_data[0][0])
+            common_base = min(base_candidates) if base_candidates else 0
+
+            sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
+            cca_name = extract_cca_name(qlog_data) or "Unknown"
+
+            # Removed individual summary metrics printing
+
+            connections.append({
+                'qlog_path': qlog_path,
+                'rtt_data': rtt_data,
+                'cc_data': cc_data,
+                'bw_data': bw_data,
+                'sampled_bw_data': sampled_bw_data,
+                'cca_name': cca_name,
+                'common_base': common_base,
+            })
+
+    # Compute the global end time (in seconds) based on the earliest end among connections
+    global_end_s = min([conn['cc_data'][0][-1] / 1e6 for conn in connections if conn['cc_data'][0]])
+    global_end_us = global_end_s * 1e6
+
+    # Compute truncated metrics for each connection up to global_end_us
+    truncated_metrics_list = []
+    for conn in connections:
+        tm = compute_summary_metrics(conn['rtt_data'], conn['cc_data'], conn['bw_data'], end_time_us=global_end_us)
+        truncated_metrics_list.append(tm)
+
+    # Average the metrics across connections
+    avg_metrics = {}
+    keys = truncated_metrics_list[0].keys()
+    for key in keys:
+        # For numeric values, average over available (non-NaN) entries
+        values = [m[key] for m in truncated_metrics_list if not math.isnan(m[key])]
+        avg_metrics[key] = statistics.mean(values) if values else math.nan
+
+    # Override total_time_s with the global end time in seconds
+    avg_metrics['total_time_s'] = global_end_s
+
+    print("Averaged Summary Metrics (truncated to the end of the first connection):")
+    print_summary_metrics(avg_metrics)
 
     # Plot all subplots for the connections
     plot_all_subplots_multi(connections, plot_bytes_in_flight=args.plot_bytes_in_flight, save_path=args.output)
+
 
 
 if __name__ == "__main__":
