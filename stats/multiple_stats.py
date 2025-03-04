@@ -521,14 +521,31 @@ def print_summary_metrics(metrics):
 #                                Main Script                                  #
 ###############################################################################
 
+
+def get_last_n_qlog_files(directory, n=4, extensions=('.qlog')):
+    """
+    Returns the last n qlog files (sorted by modification time) in the given directory.
+    """
+    if not os.path.isdir(directory):
+        raise ValueError(f"{directory} is not a valid directory.")
+    files = [os.path.join(directory, f) for f in os.listdir(directory)
+             if os.path.isfile(os.path.join(directory, f)) and f.lower().endswith(extensions)]
+    if len(files) < n:
+        raise ValueError(f"Less than {n} qlog files found in {directory}")
+    files = sorted(files, key=os.path.getmtime)
+    return files[-n:]
+
+
 def main():
     parser = argparse.ArgumentParser(description='Process qlog files and plot metrics for comparison.')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--parent-dir', type=str,
-                       help="Parent directory containing subdirectories 'westwood+', 'newreno', 'cubic', and 'bbr'.\n"
+                       help="Parent directory containing subdirectories 'westwood+', 'newreno', 'cubic', and 'bbr2'.\n"
                             "From each, the most recent qlog file is selected.")
     group.add_argument('--qlog-paths', nargs=4, type=str,
                        help="Paths to the 4 qlog files.")
+    parser.add_argument('--cca', type=str, choices=['same', 'diff'], default='diff',
+                    help="CCA mode: 'same' to use the last 4 qlog files from the same folder, 'diff' to use one from each subdirectory (westwood+, newreno, cubic, bbr2).")
     parser.add_argument('--plot-bytes-in-flight', action='store_true', default=False,
                         help='Enable plotting of bytes in flight')
     parser.add_argument('--output', type=str, required=False,
@@ -537,57 +554,15 @@ def main():
 
     connections = []
     # If --parent-dir is provided, use it to pick the latest file from each subfolder.
-    if args.parent_dir:
-        required_subdirs = ['westwood+', 'newreno', 'cubic', 'bbr']
-        for sub in required_subdirs:
-            sub_path = os.path.join(args.parent_dir, sub)
-            try:
-                qlog_path = get_latest_qlog_file(sub_path)
-            except ValueError as e:
-                print(f"Error in subdirectory {sub_path}: {e}")
-                exit(1)
-            print(f"Using {qlog_path} for {sub}")
-            # Process the file as below.
-            with open(qlog_path, 'r') as file:
-                qlog_data = json.load(file)
-
-            rtt_data = extract_rtt_metrics(qlog_data)
-            cc_data = extract_congestion_metrics(qlog_data)
-            bw_data = extract_bandwidth_metrics(qlog_data)
-
-            base_candidates = []
-            if bw_data[0]:
-                base_candidates.append(bw_data[0][0])
-            if cc_data[0]:
-                base_candidates.append(cc_data[0][0])
-            common_base = min(base_candidates) if base_candidates else 0
-
-            sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
-            cca_name = extract_cca_name(qlog_data) or sub  # Use folder name as fallback
-
-            metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
-            print(f"Summary Metrics for {qlog_path} ({cca_name}):")
-            print_summary_metrics(metrics)
-
-            connections.append({
-                'qlog_path': qlog_path,
-                'rtt_data': rtt_data,
-                'cc_data': cc_data,
-                'bw_data': bw_data,
-                'sampled_bw_data': sampled_bw_data,
-                'cca_name': cca_name,
-                'common_base': common_base,
-                'metrics': metrics,
-            })
-    else:
-        # Use individual qlog file paths provided via --qlog-paths
-        if len(args.qlog_paths) != 4:
-            print("Error: Exactly four qlog file paths must be provided with --qlog-paths.")
+if args.parent_dir:
+    if args.cca == 'same':
+        try:
+            qlog_paths = get_last_n_qlog_files(args.parent_dir, n=4)
+        except ValueError as e:
+            print(f"Error in directory {args.parent_dir}: {e}")
             exit(1)
-        for qlog_path in args.qlog_paths:
-            if not os.path.isfile(qlog_path):
-                print(f'Error: The file {qlog_path} does not exist.')
-                exit(1)
+        for qlog_path in qlog_paths:
+            print(f"Using {qlog_path}")
             with open(qlog_path, 'r') as file:
                 qlog_data = json.load(file)
 
@@ -619,6 +594,48 @@ def main():
                 'common_base': common_base,
                 'metrics': metrics,
             })
+    else:
+        required_subdirs = ['westwood+', 'newreno', 'cubic', 'bbr2']
+        for sub in required_subdirs:
+            sub_path = os.path.join(args.parent_dir, sub)
+            try:
+                qlog_path = get_latest_qlog_file(sub_path)
+            except ValueError as e:
+                print(f"Error in subdirectory {sub_path}: {e}")
+                exit(1)
+            print(f"Using {qlog_path} for {sub}")
+            with open(qlog_path, 'r') as file:
+                qlog_data = json.load(file)
+
+            rtt_data = extract_rtt_metrics(qlog_data)
+            cc_data = extract_congestion_metrics(qlog_data)
+            bw_data = extract_bandwidth_metrics(qlog_data)
+
+            base_candidates = []
+            if bw_data[0]:
+                base_candidates.append(bw_data[0][0])
+            if cc_data[0]:
+                base_candidates.append(cc_data[0][0])
+            common_base = min(base_candidates) if base_candidates else 0
+
+            sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
+            cca_name = extract_cca_name(qlog_data) or sub
+
+            metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
+            print(f"Summary Metrics for {qlog_path} ({cca_name}):")
+            print_summary_metrics(metrics)
+
+            connections.append({
+                'qlog_path': qlog_path,
+                'rtt_data': rtt_data,
+                'cc_data': cc_data,
+                'bw_data': bw_data,
+                'sampled_bw_data': sampled_bw_data,
+                'cca_name': cca_name,
+                'common_base': common_base,
+                'metrics': metrics,
+            })
+
 
     # Plot all subplots for the connections
     plot_all_subplots_multi(connections, plot_bytes_in_flight=args.plot_bytes_in_flight, save_path=args.output)
