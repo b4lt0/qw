@@ -572,7 +572,7 @@ def main():
     group.add_argument('--qlog-paths', nargs=4, type=str,
                        help="Paths to the 4 qlog files.")
     parser.add_argument('--cca', type=str, choices=['same', 'diff'], default='diff',
-                        help="CCA mode: 'same' to use the last 4 qlog files from the same folder, 'diff' to use one from each subdirectory (westwood+, newreno, cubic, bbr2).")
+                    help="CCA mode: 'same' to use the last 4 qlog files from the same folder, 'diff' to use one from each subdirectory (westwood+, newreno, cubic, bbr2).")
     parser.add_argument('--plot-bytes-in-flight', action='store_true', default=False,
                         help='Enable plotting of bytes in flight')
     parser.add_argument('--output', type=str, required=False,
@@ -607,7 +607,9 @@ def main():
                 sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
                 cca_name = extract_cca_name(qlog_data) or "Unknown"
 
-                # Removed individual summary metrics printing
+                metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
+                print(f"Summary Metrics for {qlog_path} ({cca_name}):")
+                print_summary_metrics(metrics)
 
                 connections.append({
                     'qlog_path': qlog_path,
@@ -617,6 +619,7 @@ def main():
                     'sampled_bw_data': sampled_bw_data,
                     'cca_name': cca_name,
                     'common_base': common_base,
+                    'metrics': metrics,
                 })
         else:
             required_subdirs = ['westwood+', 'newreno', 'cubic', 'bbr2']
@@ -645,7 +648,9 @@ def main():
                 sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
                 cca_name = extract_cca_name(qlog_data) or sub
 
-                # Removed individual summary metrics printing
+                metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
+                print(f"Summary Metrics for {qlog_path} ({cca_name}):")
+                print_summary_metrics(metrics)
 
                 connections.append({
                     'qlog_path': qlog_path,
@@ -655,67 +660,12 @@ def main():
                     'sampled_bw_data': sampled_bw_data,
                     'cca_name': cca_name,
                     'common_base': common_base,
+                    'metrics': metrics,
                 })
-    else:
-        # Handle the --qlog-paths option
-        for qlog_path in args.qlog_paths:
-            print(f"Using {qlog_path}")
-            with open(qlog_path, 'r') as file:
-                qlog_data = json.load(file)
 
-            rtt_data = extract_rtt_metrics(qlog_data)
-            cc_data = extract_congestion_metrics(qlog_data)
-            bw_data = extract_bandwidth_metrics(qlog_data)
-
-            base_candidates = []
-            if bw_data[0]:
-                base_candidates.append(bw_data[0][0])
-            if cc_data[0]:
-                base_candidates.append(cc_data[0][0])
-            common_base = min(base_candidates) if base_candidates else 0
-
-            sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
-            cca_name = extract_cca_name(qlog_data) or "Unknown"
-
-            # Removed individual summary metrics printing
-
-            connections.append({
-                'qlog_path': qlog_path,
-                'rtt_data': rtt_data,
-                'cc_data': cc_data,
-                'bw_data': bw_data,
-                'sampled_bw_data': sampled_bw_data,
-                'cca_name': cca_name,
-                'common_base': common_base,
-            })
-
-    # Compute the global end time (in seconds) based on the earliest end among connections
-    global_end_s = min([conn['cc_data'][0][-1] / 1e6 for conn in connections if conn['cc_data'][0]])
-    global_end_us = global_end_s * 1e6
-
-    # Compute truncated metrics for each connection up to global_end_us
-    truncated_metrics_list = []
-    for conn in connections:
-        tm = compute_summary_metrics(conn['rtt_data'], conn['cc_data'], conn['bw_data'], end_time_us=global_end_us)
-        truncated_metrics_list.append(tm)
-
-    # Average the metrics across connections
-    avg_metrics = {}
-    keys = truncated_metrics_list[0].keys()
-    for key in keys:
-        # For numeric values, average over available (non-NaN) entries
-        values = [m[key] for m in truncated_metrics_list if not math.isnan(m[key])]
-        avg_metrics[key] = statistics.mean(values) if values else math.nan
-
-    # Override total_time_s with the global end time in seconds
-    avg_metrics['total_time_s'] = global_end_s
-
-    print("Averaged Summary Metrics (truncated to the end of the first connection):")
-    print_summary_metrics(avg_metrics)
 
     # Plot all subplots for the connections
     plot_all_subplots_multi(connections, plot_bytes_in_flight=args.plot_bytes_in_flight, save_path=args.output)
-
 
 
 if __name__ == "__main__":
