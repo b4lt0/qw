@@ -554,87 +554,87 @@ def main():
 
     connections = []
     # If --parent-dir is provided, use it to pick the latest file from each subfolder.
-if args.parent_dir:
-    if args.cca == 'same':
-        try:
-            qlog_paths = get_last_n_qlog_files(args.parent_dir, n=4)
-        except ValueError as e:
-            print(f"Error in directory {args.parent_dir}: {e}")
-            exit(1)
-        for qlog_path in qlog_paths:
-            print(f"Using {qlog_path}")
-            with open(qlog_path, 'r') as file:
-                qlog_data = json.load(file)
-
-            rtt_data = extract_rtt_metrics(qlog_data)
-            cc_data = extract_congestion_metrics(qlog_data)
-            bw_data = extract_bandwidth_metrics(qlog_data)
-
-            base_candidates = []
-            if bw_data[0]:
-                base_candidates.append(bw_data[0][0])
-            if cc_data[0]:
-                base_candidates.append(cc_data[0][0])
-            common_base = min(base_candidates) if base_candidates else 0
-
-            sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
-            cca_name = extract_cca_name(qlog_data) or "Unknown"
-
-            metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
-            print(f"Summary Metrics for {qlog_path} ({cca_name}):")
-            print_summary_metrics(metrics)
-
-            connections.append({
-                'qlog_path': qlog_path,
-                'rtt_data': rtt_data,
-                'cc_data': cc_data,
-                'bw_data': bw_data,
-                'sampled_bw_data': sampled_bw_data,
-                'cca_name': cca_name,
-                'common_base': common_base,
-                'metrics': metrics,
-            })
-    else:
-        required_subdirs = ['westwood+', 'newreno', 'cubic', 'bbr2']
-        for sub in required_subdirs:
-            sub_path = os.path.join(args.parent_dir, sub)
+    if args.parent_dir:
+        if args.cca == 'same':
             try:
-                qlog_path = get_latest_qlog_file(sub_path)
+                qlog_paths = get_last_n_qlog_files(args.parent_dir, n=4)
             except ValueError as e:
-                print(f"Error in subdirectory {sub_path}: {e}")
+                print(f"Error in directory {args.parent_dir}: {e}")
                 exit(1)
-            print(f"Using {qlog_path} for {sub}")
-            with open(qlog_path, 'r') as file:
-                qlog_data = json.load(file)
+            for qlog_path in qlog_paths:
+                print(f"Using {qlog_path}")
+                with open(qlog_path, 'r') as file:
+                    qlog_data = json.load(file)
 
-            rtt_data = extract_rtt_metrics(qlog_data)
-            cc_data = extract_congestion_metrics(qlog_data)
-            bw_data = extract_bandwidth_metrics(qlog_data)
+                rtt_data = extract_rtt_metrics(qlog_data)
+                cc_data = extract_congestion_metrics(qlog_data)
+                bw_data = extract_bandwidth_metrics(qlog_data)
 
-            base_candidates = []
-            if bw_data[0]:
-                base_candidates.append(bw_data[0][0])
-            if cc_data[0]:
-                base_candidates.append(cc_data[0][0])
-            common_base = min(base_candidates) if base_candidates else 0
+                base_candidates = []
+                if bw_data[0]:
+                    base_candidates.append(bw_data[0][0])
+                if cc_data[0]:
+                    base_candidates.append(cc_data[0][0])
+                common_base = min(base_candidates) if base_candidates else 0
 
-            sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
-            cca_name = extract_cca_name(qlog_data) or sub
+                sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
+                cca_name = extract_cca_name(qlog_data) or "Unknown"
 
-            metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
-            print(f"Summary Metrics for {qlog_path} ({cca_name}):")
-            print_summary_metrics(metrics)
+                metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
+                print(f"Summary Metrics for {qlog_path} ({cca_name}):")
+                print_summary_metrics(metrics)
 
-            connections.append({
-                'qlog_path': qlog_path,
-                'rtt_data': rtt_data,
-                'cc_data': cc_data,
-                'bw_data': bw_data,
-                'sampled_bw_data': sampled_bw_data,
-                'cca_name': cca_name,
-                'common_base': common_base,
-                'metrics': metrics,
-            })
+                connections.append({
+                    'qlog_path': qlog_path,
+                    'rtt_data': rtt_data,
+                    'cc_data': cc_data,
+                    'bw_data': bw_data,
+                    'sampled_bw_data': sampled_bw_data,
+                    'cca_name': cca_name,
+                    'common_base': common_base,
+                    'metrics': metrics,
+                })
+        else:
+            required_subdirs = ['westwood+', 'newreno', 'cubic', 'bbr2']
+            for sub in required_subdirs:
+                sub_path = os.path.join(args.parent_dir, sub)
+                try:
+                    qlog_path = get_latest_qlog_file(sub_path)
+                except ValueError as e:
+                    print(f"Error in subdirectory {sub_path}: {e}")
+                    exit(1)
+                print(f"Using {qlog_path} for {sub}")
+                with open(qlog_path, 'r') as file:
+                    qlog_data = json.load(file)
+
+                rtt_data = extract_rtt_metrics(qlog_data)
+                cc_data = extract_congestion_metrics(qlog_data)
+                bw_data = extract_bandwidth_metrics(qlog_data)
+
+                base_candidates = []
+                if bw_data[0]:
+                    base_candidates.append(bw_data[0][0])
+                if cc_data[0]:
+                    base_candidates.append(cc_data[0][0])
+                common_base = min(base_candidates) if base_candidates else 0
+
+                sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
+                cca_name = extract_cca_name(qlog_data) or sub
+
+                metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
+                print(f"Summary Metrics for {qlog_path} ({cca_name}):")
+                print_summary_metrics(metrics)
+
+                connections.append({
+                    'qlog_path': qlog_path,
+                    'rtt_data': rtt_data,
+                    'cc_data': cc_data,
+                    'bw_data': bw_data,
+                    'sampled_bw_data': sampled_bw_data,
+                    'cca_name': cca_name,
+                    'common_base': common_base,
+                    'metrics': metrics,
+                })
 
 
     # Plot all subplots for the connections
