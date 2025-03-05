@@ -316,7 +316,7 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
     for i, conn in enumerate(connections):
         cc_data = conn['cc_data']
         common_base = conn['common_base']
-        times_cc_s = normalize_times(cc_data[0], common_base+(10*i*1e6))
+        times_cc_s = normalize_times(cc_data[0], common_base-(10*i*1e6))
         data_sent_mb = [s / (1024.0 * 1024.0) for s in cc_data[1]]
         data_acked_mb = [a / (1024.0 * 1024.0) for a in cc_data[2]]
         data_lost_mb = [l / (1024.0 * 1024.0) for l in cc_data[3]]
@@ -325,7 +325,7 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
         ax_data.plot(times_cc_s, data_acked_mb, label=f"{label_prefix} Acked", color=colors[i], linestyle='--')
         ax_data.plot(times_cc_s, data_lost_mb, label=f"{label_prefix} Lost", color=colors[i], linestyle='-.')
         # Plot timeouts (vertical lines) for this connection
-        timeout_s = normalize_times(cc_data[7], common_base+(10*i*1e6))
+        timeout_s = normalize_times(cc_data[7], common_base-(10*i*1e6))
         for t in timeout_s:
             ax_data.axvline(t, color=colors[i], linestyle=':', alpha=0.5)
     
@@ -342,7 +342,7 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
     for i, conn in enumerate(connections):
         cc_data = conn['cc_data']
         common_base = conn['common_base']
-        times_cc_s = normalize_times(cc_data[0], common_base+(10*i*1e6))
+        times_cc_s = normalize_times(cc_data[0], common_base-(10*i*1e6))
         cwnd_kb = [c / 1024.0 for c in cc_data[4]]
         ax_cc.plot(times_cc_s, cwnd_kb, label=f"{conn['cca_name']} CWND", color=colors[i], linestyle='-')
         if plot_bytes_in_flight:
@@ -353,7 +353,7 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
         if ssthresh_list:
             ssthresh_times = [t for t, _ in ssthresh_list]
             ssthresh_values = [val / 1024.0 for _, val in ssthresh_list]
-            ssthresh_times_s = normalize_times(ssthresh_times, common_base+(10*i*1e6))
+            ssthresh_times_s = normalize_times(ssthresh_times, common_base-(10*i*1e6))
             ax_cc.step(ssthresh_times_s, ssthresh_values, label=f"{conn['cca_name']} SSThresh", color=colors[i], linestyle=':')
 
     ax_cc.ticklabel_format(style='plain', axis='x')
@@ -369,7 +369,7 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
     for i, conn in enumerate(connections):
         bw_data = conn['bw_data']
         common_base = conn['common_base']
-        times_bw_s = normalize_times(bw_data[0], common_base+(10*i*1e6))
+        times_bw_s = normalize_times(bw_data[0], common_base-(10*i*1e6))
         # Estimated Bandwidth in MB/s
         bw_estimates_mbs = [bw / (1024.0 * 1024.0) if bw is not None else None for bw in bw_data[1]]
         ax_bw.plot(times_bw_s, bw_estimates_mbs, label=f"{conn['cca_name']} Est BW", color=colors[i], linestyle='-')
