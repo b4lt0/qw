@@ -328,6 +328,9 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
         timeout_s = normalize_times(cc_data[7], common_base)
         for t in timeout_s:
             ax_data.axvline(t, color=colors[i], linestyle=':', alpha=0.5)
+    
+    ax_data.ticklabel_format(style='plain', axis='x')
+
     ax_data.set_title("Data Over Time")
     ax_data.set_xlabel("Time (s)")
     ax_data.set_ylabel("Data (MB)")
@@ -352,6 +355,9 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
             ssthresh_values = [val / 1024.0 for _, val in ssthresh_list]
             ssthresh_times_s = normalize_times(ssthresh_times, common_base)
             ax_cc.step(ssthresh_times_s, ssthresh_values, label=f"{conn['cca_name']} SSThresh", color=colors[i], linestyle=':')
+
+    ax_cc.ticklabel_format(style='plain', axis='x')
+
     ax_cc.set_title("Congestion Control Over Time")
     ax_cc.set_xlabel("Time (s)")
     ax_cc.set_ylabel("CWND (KB)")
@@ -362,28 +368,34 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
     ax_bw = axs[1, 1]
     for i, conn in enumerate(connections):
         bw_data = conn['bw_data']
-        # Use actual timestamps instead of normalized ones (or you can keep using normalize_times if desired)
-        times_bw_s = [t / 1e6 for t in bw_data[0]]
-        # Estimated Bandwidth in Mbit/s
-        bw_estimates_mbps = [ (bw * 8) / (1024.0 * 1024.0) if bw is not None else None for bw in bw_data[1]]
-        ax_bw.plot(times_bw_s, bw_estimates_mbps, label=f"{conn['cca_name']} Est BW", color=colors[i], linestyle='-')
+        common_base = conn['common_base']
+        times_bw_s = normalize_times(bw_data[0], common_base)
+        # Estimated Bandwidth in MB/s
+        bw_estimates_mbs = [bw / (1024.0 * 1024.0) if bw is not None else None for bw in bw_data[1]]
+        ax_bw.plot(times_bw_s, bw_estimates_mbs, label=f"{conn['cca_name']} Est BW", color=colors[i], linestyle='-')
+        # Sampled Bandwidth
+        sampled_bw_data = conn['sampled_bw_data']
+        if sampled_bw_data is not None:
+            sampled_bw_times, bw_samples = sampled_bw_data
+            ax_bw.plot(sampled_bw_times, bw_samples, label=f"{conn['cca_name']} Sampled BW", color=colors[i], linestyle='--')
+        # For WESTWOOD, optionally plot the low pass filter coefficient
+        if conn['cca_name'].upper() == "WESTWOOD":
+            num_samples = len(bw_estimates_mbs)
+            s_values = np.arange(num_samples)
+            center = 20.0
+            scale  = 0.5
+            factor = 6.0 / 8.0
+            coef_values = factor * (1.0 / (1.0 + np.exp(-((s_values - center) / scale))))
+            # Assume the same time axis as the estimated BW for plotting
+            ax_bw.plot(times_bw_s, coef_values, label=f"{conn['cca_name']} Filter Coef", color=colors[i], linestyle=':')
+
+    ax_bw.ticklabel_format(style='plain', axis='x')
 
     ax_bw.set_title("Bandwidth Over Time")
     ax_bw.set_xlabel("Time (s)")
-    ax_bw.set_ylabel("Bandwidth (Mb/s)")
+    ax_bw.set_ylabel("Bandwidth (MB/s)")
     ax_bw.legend(fontsize='small')
     ax_bw.grid(True)
-
-    # --- Set x-axis limit to the end time of the first (shortest) connection ---
-    end_times = []
-    for conn in connections:
-        if conn['cc_data'][0]:
-            end_times.append(conn['cc_data'][0][-1] / 1e6)
-    if end_times:
-        global_end = min(end_times)
-        for ax in axs.flat:
-            ax.set_xlim(0, global_end)
-
 
     plt.tight_layout()
     if save_path:
@@ -396,46 +408,16 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
 #                      Computing & Printing Summary Metrics                   #
 ###############################################################################
 
-def compute_summary_metrics(rtt_data, cc_data, bw_data, end_time_us=None):
+def compute_summary_metrics(rtt_data, cc_data, bw_data):
     """
     Compute summary metrics (average RTT, average BW, throughput, goodput,
     loss rate, average cwnd, number of retransmissions) from the extracted data.
     """
-    # times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
-    # (times_cc, data_sent, data_acked, data_lost,
-    #  cwnd_values, bif_values, ssthresh_list,
-    #  timeouts, timeout_counts, lost_event_count) = cc_data
-    # times_bw, bw_estimates = bw_data
-
-    if end_time_us is not None:
-        # Filter congestion metrics arrays
-        times_cc, data_sent, data_acked, data_lost, cwnd_values, bif_values, ssthresh_list, timeouts, timeout_counts, lost_event_count = cc_data
-        indices = [i for i, t in enumerate(times_cc) if t <= end_time_us]
-        times_cc = [times_cc[i] for i in indices]
-        data_sent = [data_sent[i] for i in indices]
-        data_acked = [data_acked[i] for i in indices]
-        data_lost = [data_lost[i] for i in indices]
-        cwnd_values = [cwnd_values[i] for i in indices]
-        bif_values = [bif_values[i] for i in indices]
-        timeouts = [t for t in timeouts if t <= end_time_us]
-        cc_data = (times_cc, data_sent, data_acked, data_lost, cwnd_values, bif_values, ssthresh_list, timeouts, timeout_counts, lost_event_count)
-
-        # Filter RTT metrics arrays
-        times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
-        indices = [i for i, t in enumerate(times_rtt) if t <= end_time_us]
-        times_rtt = [times_rtt[i] for i in indices]
-        latest_rtts = [latest_rtts[i] for i in indices]
-        min_rtts = [min_rtts[i] for i in indices]
-        smoothed_rtts = [smoothed_rtts[i] for i in indices]
-        rtt_data = (times_rtt, latest_rtts, min_rtts, smoothed_rtts)
-
-        # Filter bandwidth metrics arrays
-        times_bw, bw_estimates = bw_data
-        indices = [i for i, t in enumerate(times_bw) if t <= end_time_us]
-        times_bw = [times_bw[i] for i in indices]
-        bw_estimates = [bw_estimates[i] for i in indices]
-        bw_data = (times_bw, bw_estimates)
-
+    times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
+    (times_cc, data_sent, data_acked, data_lost,
+     cwnd_values, bif_values, ssthresh_list,
+     timeouts, timeout_counts, lost_event_count) = cc_data
+    times_bw, bw_estimates = bw_data
 
     valid_smoothed = [r for r in smoothed_rtts if r is not None]
     if valid_smoothed:
