@@ -130,7 +130,7 @@ def extract_congestion_metrics(qlog_data):
             frames = event_data.get('frames', [])
             for frame in frames:
                 #if frame.get('frame_type') == 'ack':
-                if frame.get('frame_type') in ('ack', 'ack_receive_timestamps')
+                if frame.get('frame_type') in ('ack', 'ack_receive_timestamps'):
                     acked_ranges = frame.get('acked_ranges', [])
                     for (start_pn, end_pn) in acked_ranges:
                         for pn in range(start_pn, end_pn + 1):
