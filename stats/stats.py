@@ -600,7 +600,7 @@ def main():
                 if len(parts) >= 2:
                     try:
                         ts = float(parts[0])
-                        delay = float(parts[1])
+                        delay = float(parts[1])/1000.0
                         owd_timestamps.append(ts)
                         owd_values.append(delay)
                     except ValueError:
