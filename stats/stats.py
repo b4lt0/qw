@@ -277,10 +277,11 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
                       cca_name,
                       common_base,
                       plot_bytes_in_flight=False,
+                      owd_data=None,   # <-- New parameter for one way delay data
                       save_path=None):
     """
     Generates a 2x2 plot of:
-      - RTT over time
+      - RTT over time (and one way delay if provided)
       - Data (sent, acked, lost) over time
       - Congestion control (CWND, bytes in flight) over time
       - Bandwidth: estimated bandwidth and real bandwidth (sampled bandwidth)
@@ -320,7 +321,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     fig, axs = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle("QUIC " + cca_name + " Overview", fontsize=16)
 
-    # Subplot 1: RTT
+    # Subplot 1: RTT (and one way delay if provided)
     ax_rtt = axs[0, 0]
     if times_rtt_s and latest_rtts_ms:
         ax_rtt.plot(times_rtt_s, latest_rtts_ms, label='Latest RTT (ms)')
@@ -328,9 +329,16 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
         ax_rtt.plot(times_rtt_s, min_rtts_ms, label='Min RTT (ms)', linestyle='--')
     if times_rtt_s and smoothed_rtts_ms:
         ax_rtt.plot(times_rtt_s, smoothed_rtts_ms, label='Smoothed RTT (ms)', linestyle='-.')
+    # Plot one way delay if owd_data is provided
+    if owd_data is not None:
+        owd_timestamps, owd_values = owd_data
+        if owd_timestamps and owd_values:
+            # Normalize owd timestamps using the common base time
+            owd_timestamps_norm = normalize_times(owd_timestamps, common_base)
+            ax_rtt.plot(owd_timestamps_norm, owd_values, label='One Way Delay (ms)', color='red')
     ax_rtt.set_title("RTT Over Time")
     ax_rtt.set_xlabel("Time (s)")
-    ax_rtt.set_ylabel("RTT (ms)")
+    ax_rtt.set_ylabel("Delay (ms)")
     ax_rtt.legend()
     ax_rtt.grid(True)
 
@@ -535,6 +543,9 @@ def main():
                         help='Enable plotting of bytes in flight')
     parser.add_argument('--output', type=str, required=False,
                         help='Path to save the plot (e.g., output.png)')
+    # New argument for one way delay file
+    parser.add_argument('-owd', type=str, required=False,
+                        help='Path to one way delay file (CSV with columns: timestamp, owd, owd variation)')
     args = parser.parse_args()
     qlog_path = args.qlog_path
 
@@ -564,11 +575,47 @@ def main():
     # Compute sampled bandwidth using the common base
     sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
 
+    # Read one way delay file if provided
+    owd_data = None
+    if args.owd:
+        if not os.path.isfile(args.owd):
+            print(f'Error: The file {args.owd} does not exist.')
+            exit(1)
+        try:
+            with open(args.owd, 'r') as f:
+                lines = f.readlines()
+            owd_timestamps = []
+            owd_values = []
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                # Skip header lines (if any)
+                if line[0].isalpha():
+                    continue
+                # Try splitting on comma; if not, split on whitespace
+                parts = line.split(',')
+                if len(parts) < 2:
+                    parts = line.split()
+                if len(parts) >= 2:
+                    try:
+                        ts = float(parts[0])
+                        delay = float(parts[1])
+                        owd_timestamps.append(ts)
+                        owd_values.append(delay)
+                    except ValueError:
+                        continue
+            owd_data = (owd_timestamps, owd_values)
+        except Exception as e:
+            print(f"Error reading one way delay file: {e}")
+            owd_data = None
+
     # Compute and print summary metrics
     metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
     print_summary_metrics(metrics)
 
-    # Plot all subplots with a common base time for normalization
+    # Plot all subplots with a common base time for normalization.
+    # Pass owd_data to plot one way delay in subplot 1.
     plot_all_subplots(
         rtt_data,
         cc_data,
@@ -577,6 +624,7 @@ def main():
         cca_name,
         common_base,
         plot_bytes_in_flight=args.plot_bytes_in_flight,
+        owd_data=owd_data,
         save_path=args.output
     )
 
