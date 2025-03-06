@@ -277,7 +277,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
                       cca_name,
                       common_base,
                       plot_bytes_in_flight=False,
-                      owd_data=None,   # <-- New parameter for one way delay data
+                      owd_data=None,  
                       save_path=None):
     """
     Generates a 2x2 plot of:
@@ -327,8 +327,8 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
         ax_rtt.plot(times_rtt_s, latest_rtts_ms, label='Latest RTT (ms)')
     if times_rtt_s and min_rtts_ms:
         ax_rtt.plot(times_rtt_s, min_rtts_ms, label='Min RTT (ms)', linestyle='--')
-    if times_rtt_s and smoothed_rtts_ms:
-        ax_rtt.plot(times_rtt_s, smoothed_rtts_ms, label='Smoothed RTT (ms)', linestyle='-.')
+    # if times_rtt_s and smoothed_rtts_ms:
+    #     ax_rtt.plot(times_rtt_s, smoothed_rtts_ms, label='Smoothed RTT (ms)', linestyle='-.')
     # Plot one way delay if owd_data is provided
     if owd_data is not None:
         owd_timestamps, owd_values = owd_data
