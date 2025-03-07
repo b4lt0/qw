@@ -156,7 +156,6 @@ void WestwoodOWD::onAckEvent(const AckEvent &ack) {
 
     for (const auto &packet : ack.ackedPackets) {
         updateOneWayDelay(packet);
-        logOwd(Clock::now());
         onPacketAcked(packet);
     }
 
