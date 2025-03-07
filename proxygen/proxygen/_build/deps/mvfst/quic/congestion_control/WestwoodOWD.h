@@ -6,6 +6,9 @@
 #include <quic/state/AckEvent.h>
 #include <quic/state/StateData.h>
 #include <limits>
+#include <fstream>
+#include <chrono>
+#include <optional>
 
 namespace quic {
 
@@ -14,6 +17,7 @@ class WestwoodOWDRttSampler {
   explicit WestwoodOWDRttSampler(std::chrono::seconds expiration);
 
   std::chrono::microseconds minRtt() const noexcept;
+  std::chrono::microseconds maxRtt() const noexcept;
   bool minRttExpired() const noexcept;
 
   bool newRttSample(std::chrono::microseconds rttSample,
@@ -23,10 +27,11 @@ class WestwoodOWDRttSampler {
  private:
   std::chrono::seconds expiration_;
   std::chrono::microseconds minRtt_;
+  std::chrono::microseconds maxRtt_;
   std::optional<std::chrono::steady_clock::time_point> minRttTimestamp_;
+  std::optional<std::chrono::steady_clock::time_point> maxRttTimestamp_;
   bool rttExpired_;
 };
-
 
 class WestwoodOWD : public CongestionController {
 public:
@@ -50,7 +55,7 @@ public:
   uint64_t getOneWayDelayVariation() const noexcept;
   void setAppIdle(bool, TimePoint) noexcept override;
   void setAppLimited() override;
-   void setBandwidthUtilizationFactor(
+  void setBandwidthUtilizationFactor(
       float /*bandwidthUtilizationFactor*/) noexcept override {}
 
   bool isInBackgroundMode() const noexcept override {
@@ -69,13 +74,13 @@ private:
   void updateWestwoodBandwidthEstimates(uint32_t delta);
   uint32_t westwoodLowPassFilter(uint32_t a, uint32_t b);
   bool isFirstPacket();
-  
-  // void updateRTTMin(TimePoint time);
+  void updateOneWayDelay(const CongestionController::AckEvent::AckPacket&);
+  bool delayControl(double delayThresholdFraction);
+  void logOwd(const TimePoint &timestamp);
 
 private:
   QuicConnectionStateBase& quicConnectionState_;
   std::chrono::steady_clock::time_point rttWindowStartTime_;
-  std::chrono::steady_clock::time_point T_prev;
   std::chrono::microseconds latestRttSample_;
   uint32_t bandwidthNewestEstimate_;
   uint32_t bandwidthEstimate_;
@@ -84,12 +89,13 @@ private:
   uint64_t ssthresh_;
   WestwoodOWDRttSampler rttSampler_; 
   uint64_t cwndBytes_;
-  uint64_t deltaT_;
-  uint64_t deltat_;
-  uint64_t owdv_;
-  uint64_t owd_;
+  std::chrono::steady_clock::time_point latestSendTimeStamp_;
+  uint64_t latestReceiveTimeStamp_;
+  int64_t interDeparture_;
+  int64_t interArrival_;
+  int64_t owdv_;
+  int64_t owd_;
   folly::Optional<TimePoint> endOfRecovery_;
-  folly::F14FastMap<quic::PacketNum, uint64_t> packetSendDeltaTimeStampsMap;
 };
 
 } // namespace quic
