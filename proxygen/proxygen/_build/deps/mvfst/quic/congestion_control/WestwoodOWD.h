@@ -76,7 +76,6 @@ private:
   bool isFirstPacket();
   void updateOneWayDelay(const CongestionController::AckEvent::AckPacket&);
   bool delayControl(double delayThresholdFraction);
-  void logOwd(const TimePoint &timestamp);
 
 private:
   QuicConnectionStateBase& quicConnectionState_;
