@@ -241,10 +241,6 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
             quicConnectionState_.transportSettings.maxCwndInMss,
             quicConnectionState_.transportSettings.minCwndInMss);
 
-        owd_ = 0;
-        owdv_ = 0;
-
-        lossMaxRtt_ = std::chrono::microseconds(0);;
     }
     if (cwndBytes_ < ssthresh_) {
         addAndCheckOverflow(cwndBytes_, ackedBytes);
@@ -277,15 +273,19 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
     DCHECK(loss.largestLostPacketNum.has_value() && loss.largestLostSentTime.has_value());
     subtractAndCheckUnderflow(quicConnectionState_.lossState.inflightBytes, loss.lostBytes);
 
+    owd_ = 0;
+    owdv_ = 0;
+    lossMaxRtt_ = std::chrono::microseconds(0);;
+
     if (rttSampler_.minRttExpired()) {
         rttSampler_.resetRttSample(Clock::now());
         VLOG(10) << "RTT expired, resetting RTT sample.";
     }
 
-    // or just lossMaxRtt_ = latestRttSample_.count();
-    if (latestRttSample_.count() > lossMaxRtt_.count()) {
-        lossMaxRtt_ = latestRttSample_;
-    }
+    lossMaxRtt_ = latestRttSample_.count();
+    // if (latestRttSample_.count() > lossMaxRtt_.count()) {
+    //     lossMaxRtt_ = latestRttSample_;
+    // }
 
     if (!endOfRecovery_ || *endOfRecovery_ < *loss.largestLostSentTime) {
         endOfRecovery_ = Clock::now();
