@@ -92,7 +92,7 @@ WestwoodOWD::WestwoodOWD(QuicConnectionStateBase &conn)
       interArrival_(0),
       owdv_(0),
       owd_(0),
-      lossMaxRtt_(0) {
+      lossMaxRtt_(std::chrono::microseconds(0)) {
 
     cwndBytes_ = boundedCwnd(
         cwndBytes_,
