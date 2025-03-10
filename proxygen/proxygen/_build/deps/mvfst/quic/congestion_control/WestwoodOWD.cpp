@@ -284,7 +284,7 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
 
     // or just lossMaxRtt_ = latestRttSample_.count();
     if (latestRttSample_.count() > lossMaxRtt_.count()) {
-        lossMaxRtt_ = latestRttSample_.count();
+        lossMaxRtt_ = latestRttSample_;
     }
 
     if (!endOfRecovery_ || *endOfRecovery_ < *loss.largestLostSentTime) {
