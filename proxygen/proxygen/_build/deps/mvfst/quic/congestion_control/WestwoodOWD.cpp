@@ -171,9 +171,9 @@ void WestwoodOWD::onAckEvent(const AckEvent &ack) {
 bool WestwoodOWD::delayControl(double delayThresholdFraction) {
     uint64_t rttMinUs = rttSampler_.minRtt().count();
     
-    if (lossMaxRtt_ == 0) return false;
-    if (lossMaxRtt_ > rttMinUs &&
-        (owd_ > (rttMinUs + delayThresholdFraction * (lossMaxRtt_ - rttMinUs)))) {
+    if (lossMaxRtt_.count() == 0) return false;
+    if (lossMaxRtt_.count() > rttMinUs &&
+        (owd_ > (rttMinUs + delayThresholdFraction * (lossMaxRtt_.count() - rttMinUs)))) {
         return true;
     }
     return false;
@@ -244,7 +244,7 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
         owd_ = 0;
         owdv_ = 0;
 
-        lossMaxRtt_ = 0;
+        lossMaxRtt_ = std::chrono::microseconds(0);;
     }
     if (cwndBytes_ < ssthresh_) {
         addAndCheckOverflow(cwndBytes_, ackedBytes);
@@ -283,7 +283,7 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
     }
 
     // or just lossMaxRtt_ = latestRttSample_.count();
-    if (latestRttSample_.count() > lossMaxRtt_) {
+    if (latestRttSample_.count() > lossMaxRtt_.count()) {
         lossMaxRtt_ = latestRttSample_.count();
     }
 
