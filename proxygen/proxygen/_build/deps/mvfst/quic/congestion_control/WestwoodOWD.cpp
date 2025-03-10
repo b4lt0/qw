@@ -282,7 +282,7 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
         VLOG(10) << "RTT expired, resetting RTT sample.";
     }
 
-    lossMaxRtt_ = latestRttSample_.count();
+    lossMaxRtt_ = latestRttSample_;
     // if (latestRttSample_.count() > lossMaxRtt_.count()) {
     //     lossMaxRtt_ = latestRttSample_;
     // }
