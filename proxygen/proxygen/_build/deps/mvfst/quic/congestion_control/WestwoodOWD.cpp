@@ -204,7 +204,7 @@ void WestwoodOWD::updateOneWayDelay(const CongestionController::AckEvent::AckPac
     owdv_ = interArrival_ - interDeparture_;
     owd_ += owdv_;
 
-    std::cout << time_owd_us << " " << owd_ << " " << owdv_ << " " << rttSampler_.maxRtt().count() << std::endl;
+    std::cout << time_owd_us << " " << owd_ << " " << owdv_ << " " << lossMaxRtt_.count() << std::endl;
 }
 
 
