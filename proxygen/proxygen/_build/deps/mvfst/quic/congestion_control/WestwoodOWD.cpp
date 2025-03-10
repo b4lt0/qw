@@ -91,8 +91,9 @@ WestwoodOWD::WestwoodOWD(QuicConnectionStateBase &conn)
       interDeparture_(0),
       interArrival_(0),
       owdv_(0),
-      owd_(0)
-{
+      owd_(0),
+      lossMaxRtt_(0) 
+      
     cwndBytes_ = boundedCwnd(
         cwndBytes_,
         quicConnectionState_.udpSendPacketLen,
@@ -169,14 +170,14 @@ void WestwoodOWD::onAckEvent(const AckEvent &ack) {
 
 bool WestwoodOWD::delayControl(double delayThresholdFraction) {
     uint64_t rttMinUs = rttSampler_.minRtt().count();
-    uint64_t rttMaxUs = rttSampler_.maxRtt().count();
-    if (rttMaxUs > rttMinUs &&
-        (owd_ > (rttMinUs + delayThresholdFraction * (rttMaxUs - rttMinUs)))) {
+    
+    if (lossMaxRtt_ == 0) return false;
+    if (lossMaxRtt_ > rttMinUs &&
+        (owd_ > (rttMinUs + delayThresholdFraction * (lossMaxRtt_ - rttMinUs)))) {
         return true;
     }
     return false;
 }
-
 
 void WestwoodOWD::updateOneWayDelay(const CongestionController::AckEvent::AckPacket &packet) {
     if (!packet.receiveRelativeTimeStampUsec.has_value()) {
@@ -239,8 +240,12 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
             quicConnectionState_.udpSendPacketLen,
             quicConnectionState_.transportSettings.maxCwndInMss,
             quicConnectionState_.transportSettings.minCwndInMss);
-    } 
-    // else {
+
+        owd_ = 0;
+        owdv_ = 0;
+
+        lossMaxRtt_ = 0;
+    }
     if (cwndBytes_ < ssthresh_) {
         addAndCheckOverflow(cwndBytes_, ackedBytes);
         cwndBytes_ = boundedCwnd(
@@ -257,7 +262,6 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
             quicConnectionState_.transportSettings.maxCwndInMss,
             quicConnectionState_.transportSettings.minCwndInMss);
     }
-    //}
 }
 
 void WestwoodOWD::onPacketAckOrLoss(const AckEvent *FOLLY_NULLABLE ackEvent, const LossEvent *FOLLY_NULLABLE lossEvent) {
@@ -276,6 +280,11 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
     if (rttSampler_.minRttExpired()) {
         rttSampler_.resetRttSample(Clock::now());
         VLOG(10) << "RTT expired, resetting RTT sample.";
+    }
+
+    // or just lossMaxRtt_ = latestRttSample_.count();
+    if (latestRttSample_.count() > lossMaxRtt_) {
+        lossMaxRtt_ = latestRttSample_.count();
     }
 
     if (!endOfRecovery_ || *endOfRecovery_ < *loss.largestLostSentTime) {
