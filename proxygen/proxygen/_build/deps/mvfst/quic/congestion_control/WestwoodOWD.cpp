@@ -24,7 +24,7 @@ namespace quic {
 WestwoodOWDRttSampler::WestwoodOWDRttSampler(std::chrono::seconds expiration)
     : expiration_(expiration),
       minRtt_(std::chrono::microseconds::max()),
-      maxRttSinceLastLoss_(std::chrono::microseconds::zero()),
+      maxRttSinceLastLoss_(std::chrono::microseconds(0)),
       rttExpired_(true){}
 
 std::chrono::microseconds WestwoodOWDRttSampler::minRtt() const noexcept {
@@ -34,7 +34,7 @@ std::chrono::microseconds WestwoodOWDRttSampler::minRtt() const noexcept {
 // Retrieve the current max RTT and reset it for the next epoch.
 std::chrono::microseconds WestwoodOWDRttSampler::maxRtt() const noexcept {
     auto peak = maxRttSinceLastLoss_;
-    maxRttSinceLastLoss_ = std::chrono::microseconds::zero();
+    maxRttSinceLastLoss_ = std::chrono::microseconds(0);
     return peak;
 }
 
@@ -96,7 +96,7 @@ WestwoodOWD::WestwoodOWD(QuicConnectionStateBase &conn)
       interArrival_(0),
       owdv_(0),
       owd_(0),
-      lossMaxRtt_(std::chrono::microseconds::zero()) {
+      lossMaxRtt_(std::chrono::microseconds(0)) {
 
     cwndBytes_ = boundedCwnd(
         cwndBytes_,
