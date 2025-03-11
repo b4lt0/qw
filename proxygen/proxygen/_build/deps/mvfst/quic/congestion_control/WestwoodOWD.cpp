@@ -32,7 +32,7 @@ std::chrono::microseconds WestwoodOWDRttSampler::minRtt() const noexcept {
 }
 
 // Retrieve the current max RTT and reset it for the next epoch.
-std::chrono::microseconds WestwoodOWDRttSampler::maxRtt() noexcept {
+std::chrono::microseconds WestwoodOWDRttSampler::maxRtt() const noexcept {
     auto peak = maxRttSinceLastLoss_;
     maxRttSinceLastLoss_ = std::chrono::microseconds::zero();
     return peak;
@@ -175,7 +175,7 @@ bool WestwoodOWD::delayControl(double delayThresholdFraction) {
     uint64_t rttMinUs = rttSampler_.minRtt().count();
     
     if (lossMaxRtt_.count() == 0) return false;
-    if (lossMaxRtt_.count() > rttMinUs &&
+    if (static_cast<uint64_t>(lossMaxRtt_.count()) > rttMinUs &&
         (owd_ > (rttMinUs + delayThresholdFraction * (lossMaxRtt_.count() - rttMinUs)))) {
         return true;
     }
