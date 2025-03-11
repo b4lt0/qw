@@ -17,7 +17,7 @@ class WestwoodOWDRttSampler {
   explicit WestwoodOWDRttSampler(std::chrono::seconds expiration);
 
   std::chrono::microseconds minRtt() const noexcept;
-  std::chrono::microseconds maxRtt() const noexcept;
+  std::chrono::microseconds maxRtt() noexcept;
   bool minRttExpired() const noexcept;
 
   bool newRttSample(std::chrono::microseconds rttSample,

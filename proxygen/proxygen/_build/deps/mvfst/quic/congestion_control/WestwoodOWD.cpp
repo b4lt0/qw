@@ -32,7 +32,7 @@ std::chrono::microseconds WestwoodOWDRttSampler::minRtt() const noexcept {
 }
 
 // Retrieve the current max RTT and reset it for the next epoch.
-std::chrono::microseconds WestwoodOWDRttSampler::maxRtt() const noexcept {
+std::chrono::microseconds WestwoodOWDRttSampler::maxRtt() noexcept {
     auto peak = maxRttSinceLastLoss_;
     maxRttSinceLastLoss_ = std::chrono::microseconds(0);
     return peak;
