@@ -195,7 +195,7 @@ void WestwoodOWD::updateOneWayDelay(const CongestionController::AckEvent::AckPac
     interDeparture_ = std::chrono::duration_cast<std::chrono::microseconds>(currentSendTimeStamp - latestSendTimeStamp_).count();
 
     auto currentReceiveTimeStamp = packet.receiveRelativeTimeStampUsec.value().count();
-    interArrival_ = currentReceiveTimeStamp; //- latestReceiveTimeStamp_;
+    interArrival_ = currentReceiveTimeStamp - latestReceiveTimeStamp_;
 
     latestSendTimeStamp_ = currentSendTimeStamp;
     latestReceiveTimeStamp_ = currentReceiveTimeStamp;
@@ -212,7 +212,7 @@ void WestwoodOWD::updateOneWayDelay(const CongestionController::AckEvent::AckPac
     * caused by out‐of‐order arrivals that produce apparent negative gaps 
     * and not reflecting actual queue empting. 
     **/
-    //owd_ = std::max(0, owd_);
+    owd_ = std::max(0, owd_);
     
     std::cout << time_owd_us << " " << owd_ << " " << owdv_ << " " << lossMaxRtt_.count() << std::endl;
 }
