@@ -195,7 +195,7 @@ void WestwoodOWD::updateOneWayDelay(const CongestionController::AckEvent::AckPac
     interDeparture_ = std::chrono::duration_cast<std::chrono::microseconds>(currentSendTimeStamp - latestSendTimeStamp_).count();
 
     auto currentReceiveTimeStamp = packet.receiveRelativeTimeStampUsec.value().count();
-    interArrival_ = currentReceiveTimeStamp - latestReceiveTimeStamp_;
+    interArrival_ = currentReceiveTimeStamp; //- latestReceiveTimeStamp_;
 
     latestSendTimeStamp_ = currentSendTimeStamp;
     latestReceiveTimeStamp_ = currentReceiveTimeStamp;
