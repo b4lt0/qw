@@ -24,15 +24,18 @@ namespace quic {
 WestwoodOWDRttSampler::WestwoodOWDRttSampler(std::chrono::seconds expiration)
     : expiration_(expiration),
       minRtt_(std::chrono::microseconds::max()),
-      maxRtt_(std::chrono::microseconds(0)),
-      rttExpired_(true) {}
+      maxRttSinceLastLoss_(std::chrono::microseconds::zero()),
+      rttExpired_(true){}
 
 std::chrono::microseconds WestwoodOWDRttSampler::minRtt() const noexcept {
     return minRtt_;
 }
 
-std::chrono::microseconds WestwoodOWDRttSampler::maxRtt() const noexcept {
-    return maxRtt_;
+// Retrieve the current max RTT and reset it for the next epoch.
+std::chrono::microseconds WestwoodOWDRttSampler::maxRtt() noexcept {
+    auto peak = maxRttSinceLastLoss_;
+    maxRttSinceLastLoss_ = std::chrono::microseconds::zero();
+    return peak;
 }
 
 bool WestwoodOWDRttSampler::minRttExpired() const noexcept {
@@ -53,27 +56,28 @@ bool WestwoodOWDRttSampler::newRttSample(
         minRtt_ = rttSample;
         minRttTimestamp_ = sampledTime;
     }
-    // Always update maxRtt_ if the current sample is larger.
-    if (rttExpired_ || rttSample > maxRtt_) {
-        maxRtt_ = rttSample;
-        maxRttTimestamp_ = sampledTime;
+
+    // Track the largest RTT seen since the last loss.
+    if (rttSample > maxRttSinceLastLoss_) {
+        maxRttSinceLastLoss_ = rttSample;
     }
+
     return true;
 }
 
 void WestwoodOWDRttSampler::resetRttSample(
     std::chrono::steady_clock::time_point sampledTime) noexcept {
     minRtt_ = std::chrono::microseconds::max();
-    maxRtt_ = std::chrono::microseconds(0);
     minRttTimestamp_ = sampledTime;
     rttExpired_ = true;
+    // Do NOT reset maxRttSinceLastLoss_ here; we reset it at loss time.
 }
 
+// ==================== WestwoodOWD ====================
 
-constexpr uint64_t kWestwoodOWDMinRttMicroseconds = 50000; // in microseconds
-constexpr uint64_t kWestwoodOWDInitialRttMicroseconds = 20000000; // initial RTT (20s) before any sample
-constexpr uint16_t kWestwoodOWDRttExpirationSeconds = 20; // expiration time in seconds
-
+constexpr uint64_t kWestwoodOWDMinRttMicroseconds = 50000;       
+constexpr uint64_t kWestwoodOWDInitialRttMicroseconds = 20000000; 
+constexpr uint16_t kWestwoodOWDRttExpirationSeconds = 20;         
 
 WestwoodOWD::WestwoodOWD(QuicConnectionStateBase &conn)
     : quicConnectionState_(conn),
@@ -92,7 +96,7 @@ WestwoodOWD::WestwoodOWD(QuicConnectionStateBase &conn)
       interArrival_(0),
       owdv_(0),
       owd_(0),
-      lossMaxRtt_(std::chrono::microseconds(0)) {
+      lossMaxRtt_(std::chrono::microseconds::zero()) {
 
     cwndBytes_ = boundedCwnd(
         cwndBytes_,
@@ -167,7 +171,6 @@ void WestwoodOWD::onAckEvent(const AckEvent &ack) {
         quicConnectionState_.transportSettings.minCwndInMss);
 }
 
-
 bool WestwoodOWD::delayControl(double delayThresholdFraction) {
     uint64_t rttMinUs = rttSampler_.minRtt().count();
     
@@ -203,6 +206,13 @@ void WestwoodOWD::updateOneWayDelay(const CongestionController::AckEvent::AckPac
 
     owdv_ = interArrival_ - interDeparture_;
     owd_ += owdv_;
+
+    /** 
+    * trying to clamp owd in order to reject nonsense queue negative levels
+    * caused by out‐of‐order arrivals that produce apparent negative gaps 
+    * and not reflecting actual queue empting. 
+    **/
+    //owd_ = std::max(0, owd_);
 
     std::cout << time_owd_us << " " << owd_ << " " << owdv_ << " " << lossMaxRtt_.count() << std::endl;
 }
@@ -240,24 +250,23 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
             quicConnectionState_.udpSendPacketLen,
             quicConnectionState_.transportSettings.maxCwndInMss,
             quicConnectionState_.transportSettings.minCwndInMss);
-
     }
+
+    // Slow start or congestion avoidance increment:
     if (cwndBytes_ < ssthresh_) {
+        // Slow start: add ackedBytes directly
         addAndCheckOverflow(cwndBytes_, ackedBytes);
-        cwndBytes_ = boundedCwnd(
-            cwndBytes_,
-            quicConnectionState_.udpSendPacketLen,
-            quicConnectionState_.transportSettings.maxCwndInMss,
-            quicConnectionState_.transportSettings.minCwndInMss);
     } else {
+        // Congestion avoidance: add fraction of cwnd
         uint64_t additionFactor = (kDefaultUDPSendPacketLen * ackedBytes) / cwndBytes_;
         addAndCheckOverflow(cwndBytes_, additionFactor);
-        cwndBytes_ = boundedCwnd(
-            cwndBytes_,
-            quicConnectionState_.udpSendPacketLen,
-            quicConnectionState_.transportSettings.maxCwndInMss,
-            quicConnectionState_.transportSettings.minCwndInMss);
     }
+
+    cwndBytes_ = boundedCwnd(
+        cwndBytes_,
+        quicConnectionState_.udpSendPacketLen,
+        quicConnectionState_.transportSettings.maxCwndInMss,
+        quicConnectionState_.transportSettings.minCwndInMss);
 }
 
 void WestwoodOWD::onPacketAckOrLoss(const AckEvent *FOLLY_NULLABLE ackEvent, const LossEvent *FOLLY_NULLABLE lossEvent) {
@@ -275,23 +284,19 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
 
     owd_ = 0;
     owdv_ = 0;
-    lossMaxRtt_ = std::chrono::microseconds(0);;
+
+    lossMaxRtt_ = rttSampler_.maxRtt();
 
     if (rttSampler_.minRttExpired()) {
         rttSampler_.resetRttSample(Clock::now());
         VLOG(10) << "RTT expired, resetting RTT sample.";
     }
-
-    lossMaxRtt_ = latestRttSample_;
-    // if (latestRttSample_.count() > lossMaxRtt_.count()) {
-    //     lossMaxRtt_ = latestRttSample_;
-    // }
-
+    
     if (!endOfRecovery_ || *endOfRecovery_ < *loss.largestLostSentTime) {
         endOfRecovery_ = Clock::now();
         uint64_t rttMinUs = rttSampler_.minRtt().count();
         ssthresh_ = std::max(
-            static_cast<uint64_t>((bandwidthEstimate_ * (rttMinUs/1e6))),
+            static_cast<uint64_t>(bandwidthEstimate_ * (rttMinUs / 1e6)),
             2 * quicConnectionState_.udpSendPacketLen);
         cwndBytes_ = ssthresh_;
         cwndBytes_ = boundedCwnd(
@@ -331,7 +336,8 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
                 getSlowStartThreshold(),
                 kPersistentCongestion);
         }
-        cwndBytes_ = quicConnectionState_.transportSettings.minCwndInMss * quicConnectionState_.udpSendPacketLen;
+        cwndBytes_ = quicConnectionState_.transportSettings.minCwndInMss *
+                     quicConnectionState_.udpSendPacketLen;
         cwndBytes_ = boundedCwnd(
             cwndBytes_,
             quicConnectionState_.udpSendPacketLen,
@@ -346,8 +352,9 @@ void WestwoodOWD::updateWestwoodBandwidthEstimates(uint32_t delta) {
         return;
     }
     uint64_t bw_ns_est = (bandwidthNewestEstimate_ == 0 && bandwidthEstimate_ == 0)
-        ? bytesAckedInCurrentInterval_ / (delta/1e6)
-        : westwoodLowPassFilter(bandwidthNewestEstimate_, bytesAckedInCurrentInterval_ / (delta/1e6));
+        ? bytesAckedInCurrentInterval_ / (delta / 1e6)
+        : westwoodLowPassFilter(bandwidthNewestEstimate_, 
+                                bytesAckedInCurrentInterval_ / (delta / 1e6));
     bandwidthNewestEstimate_ = bw_ns_est;
     bandwidthEstimate_ = westwoodLowPassFilter(bandwidthEstimate_, bw_ns_est);
 
@@ -364,7 +371,8 @@ uint32_t WestwoodOWD::westwoodLowPassFilter(uint32_t a, uint32_t b) {
     float s = static_cast<float>(step_);
     float sigmoid = 1.0f / (1.0f + std::exp(-((s - center) / scale)));
     float coef = sigmoid * (6.0f / 8.0f);
-    float filtered = (coef * static_cast<float>(a)) + ((1.0f - coef) * static_cast<float>(b));
+    float filtered = (coef * static_cast<float>(a)) + 
+                     ((1.0f - coef) * static_cast<float>(b));
     return static_cast<uint32_t>(filtered);
 }
 

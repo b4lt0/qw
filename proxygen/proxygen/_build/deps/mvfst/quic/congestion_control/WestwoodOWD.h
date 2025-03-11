@@ -27,9 +27,9 @@ class WestwoodOWDRttSampler {
  private:
   std::chrono::seconds expiration_;
   std::chrono::microseconds minRtt_;
-  std::chrono::microseconds maxRtt_;
+  std::chrono::microseconds maxRttSinceLastLoss_;
   std::optional<std::chrono::steady_clock::time_point> minRttTimestamp_;
-  std::optional<std::chrono::steady_clock::time_point> maxRttTimestamp_;
+  //std::optional<std::chrono::steady_clock::time_point> maxRttTimestamp_;
   bool rttExpired_;
 };
 
