@@ -213,7 +213,7 @@ void WestwoodOWD::updateOneWayDelay(const CongestionController::AckEvent::AckPac
     * caused by out‐of‐order arrivals that produce apparent negative gaps 
     * and not reflecting actual queue empting. 
     **/
-    // owd_ = std::max(static_cast<int64_t>(0), owd_);
+    owd_ = std::max(static_cast<int64_t>(0), owd_);
 
     // std::cout << packet.packetNum << " " << currentSendTimeStamp << " " << currentReceiveTimeStamp << std::endl; 
     
@@ -285,8 +285,8 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
     DCHECK(loss.largestLostPacketNum.has_value() && loss.largestLostSentTime.has_value());
     subtractAndCheckUnderflow(quicConnectionState_.lossState.inflightBytes, loss.lostBytes);
 
-    // owd_ = 0;
-    // owdv_ = 0;
+    owd_ = 0;
+    owdv_ = 0;
 
     // lossMaxRtt_ = rttSampler_.maxRtt();
 
