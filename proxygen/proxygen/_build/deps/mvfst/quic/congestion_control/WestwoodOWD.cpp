@@ -216,7 +216,16 @@ void WestwoodOWD::updateOneWayDelay(const CongestionController::AckEvent::AckPac
     //owd_ = std::max(static_cast<int64_t>(0), owd_);
 
     // std::cout << packet.packetNum << " " << currentSendTimeStamp << " " << currentReceiveTimeStamp << std::endl; 
-    
+
+    VLOG(1) << "-------------------------";
+    VLOG(1) << "Packet Number   :" << packet.packetNum;
+    VLOG(1) << "Inter-arrival   : " << interArrival_ << " = " << currentReceiveTimeStamp << " - " << latestReceiveTimeStamp_;
+    VLOG(1) << "Inter-departure : " << interDeparture_ << " = " << currentSendTimeStamp << " - " << latestSendTimeStamp_;
+    VLOG(1) << "OWD variation   : " << owdv_ << " = " << interArrival_ << " - " << interDeparture_;
+    VLOG(1) << "One-way-delay   : " << owd_ << " += " << owdv_;
+    VLOG(1) << "-------------------------";
+
+
     std::cout << time_owd_us << " " << owd_ << " " << owdv_ << " " << lossMaxRtt_.count() << std::endl;
 }
 
@@ -237,8 +246,8 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
         updateWestwoodBandwidthEstimates(delta);
         rttWindowStartTime_ = now;
         bytesAckedInCurrentInterval_ = 0;
-        VLOG(1) << "Bw estimate " << bandwidthEstimate_;
-        VLOG(1) << "CWND bytes  " << cwndBytes_;
+        //VLOG(1) << "Bw estimate " << bandwidthEstimate_;
+        //VLOG(1) << "CWND bytes  " << cwndBytes_;
     }
 
     // If the delay condition is met, adjust ssthresh and cwnd.
