@@ -254,8 +254,8 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
         updateWestwoodBandwidthEstimates(delta);
         rttWindowStartTime_ = now;
         bytesAckedInCurrentInterval_ = 0;
-        //VLOG(1) << "Bw estimate " << bandwidthEstimate_;
-        //VLOG(1) << "CWND bytes  " << cwndBytes_;
+        VLOG(1) << "Bw estimate " << bandwidthEstimate_;
+        VLOG(1) << "CWND bytes  " << cwndBytes_;
     }
 
     // If the delay condition is met, adjust ssthresh and cwnd.
