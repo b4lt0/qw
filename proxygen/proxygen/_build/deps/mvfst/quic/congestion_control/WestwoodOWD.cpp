@@ -96,8 +96,9 @@ WestwoodOWD::WestwoodOWD(QuicConnectionStateBase &conn)
       interArrival_(0),
       owdv_(0),
       owd_(0),
-      //lossMaxRtt_(std::chrono::microseconds(0)) fixed for test in lab
-      lossMaxRtt_(std::chrono::microseconds(50000)) {
+      lossMaxRtt_(std::chrono::microseconds(0)) //fixed for test in lab
+      //lossMaxRtt_(std::chrono::microseconds(50000)) 
+      {
 
     cwndBytes_ = boundedCwnd(
         cwndBytes_,
@@ -259,7 +260,7 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
     }
 
     // If the delay condition is met, adjust ssthresh and cwnd.
-    if (delayControl(0.8)) {
+    if (delayControl(0.5)) {
         uint64_t rttMinUs = rttSampler_.minRtt().count();
         ssthresh_ = std::max(
             static_cast<uint64_t>((bandwidthEstimate_ * rttMinUs / 1.0e6)),
@@ -273,6 +274,7 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
 
         owd_ = 0;
         owdv_ = 0;
+        lossMaxRtt_ = rttSampler_.maxRtt();
     }
 
     // Slow start or congestion avoidance increment:
@@ -308,7 +310,7 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
     owd_ = 0;
     owdv_ = 0;
 
-    // lossMaxRtt_ = rttSampler_.maxRtt();
+    lossMaxRtt_ = rttSampler_.maxRtt();
 
     if (rttSampler_.minRttExpired()) {
         rttSampler_.resetRttSample(Clock::now());
