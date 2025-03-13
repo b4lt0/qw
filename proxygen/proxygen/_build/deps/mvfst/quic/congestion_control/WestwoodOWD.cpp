@@ -391,11 +391,12 @@ void WestwoodOWD::updateWestwoodBandwidthEstimates(uint32_t delta) {
 }
 
 uint32_t WestwoodOWD::westwoodLowPassFilter(uint32_t a, uint32_t b) {
-    constexpr float center = 16.0f;
-    constexpr float scale  = 1.0f;
-    float s = static_cast<float>(step_);
-    float sigmoid = 1.0f / (1.0f + std::exp(-((s - center) / scale)));
-    float coef = sigmoid * (6.0f / 8.0f);
+    // constexpr float center = 16.0f;
+    // constexpr float scale  = 1.0f;
+    // float s = static_cast<float>(step_);
+    // float sigmoid = 1.0f / (1.0f + std::exp(-((s - center) / scale)));
+    // float coef = sigmoid * (6.0f / 8.0f);
+    float coef = 2.0f / 8.0f;
     float filtered = (coef * static_cast<float>(a)) + 
                      ((1.0f - coef) * static_cast<float>(b));
     return static_cast<uint32_t>(filtered);
