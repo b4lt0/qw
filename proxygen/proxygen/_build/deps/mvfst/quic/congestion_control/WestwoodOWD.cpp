@@ -96,8 +96,8 @@ WestwoodOWD::WestwoodOWD(QuicConnectionStateBase &conn)
       interArrival_(0),
       owdv_(0),
       owd_(0),
-      lossMaxRtt_(std::chrono::microseconds(0)) //fixed for test in lab
-      //lossMaxRtt_(std::chrono::microseconds(50000)) 
+      //lossMaxRtt_(std::chrono::microseconds(0)) //fixed for test in lab
+      lossMaxRtt_(std::chrono::microseconds(50000)) 
       {
 
     cwndBytes_ = boundedCwnd(
@@ -274,7 +274,7 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
 
         owd_ = 0;
         owdv_ = 0;
-        lossMaxRtt_ = rttSampler_.maxRtt();
+        //lossMaxRtt_ = rttSampler_.maxRtt();
     }
 
     // Slow start or congestion avoidance increment:
@@ -310,7 +310,7 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
     owd_ = 0;
     owdv_ = 0;
 
-    lossMaxRtt_ = rttSampler_.maxRtt();
+    //lossMaxRtt_ = rttSampler_.maxRtt();
 
     if (rttSampler_.minRttExpired()) {
         rttSampler_.resetRttSample(Clock::now());
