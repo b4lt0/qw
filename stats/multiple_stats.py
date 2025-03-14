@@ -297,7 +297,7 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
     for i, conn in enumerate(connections):
         rtt_data = conn['rtt_data']
         if conn['cca_name']=='WESTWOOD_OWD':
-            cca_name='Delay Control ('+threshold[i]+'%)'
+            cca_name='Delay Control ('+str(threshold[i])+'%)'
         else:
             cca_name = conn['cca_name']
         # Extract latest RTTs and filter out None values
