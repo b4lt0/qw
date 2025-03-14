@@ -373,15 +373,15 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
             sampled_bw_times, bw_samples = sampled_bw_data
             ax_bw.plot(sampled_bw_times, bw_samples, label=f"{conn['cca_name']} Sampled BW", color=colors[i], linestyle='--')
         # For WESTWOOD, optionally plot the low pass filter coefficient
-        if conn['cca_name'].upper() == "WESTWOOD":
-            num_samples = len(bw_estimates_mbs)
-            s_values = np.arange(num_samples)
-            center = 20.0
-            scale  = 0.5
-            factor = 6.0 / 8.0
-            coef_values = factor * (1.0 / (1.0 + np.exp(-((s_values - center) / scale))))
-            # Assume the same time axis as the estimated BW for plotting
-            ax_bw.plot(times_bw_s, coef_values, label=f"{conn['cca_name']} Filter Coef", color=colors[i], linestyle=':')
+        # if conn['cca_name'].upper() == "WESTWOOD":
+        #     num_samples = len(bw_estimates_mbs)
+        #     s_values = np.arange(num_samples)
+        #     center = 20.0
+        #     scale  = 0.5
+        #     factor = 6.0 / 8.0
+        #     coef_values = factor * (1.0 / (1.0 + np.exp(-((s_values - center) / scale))))
+        #     # Assume the same time axis as the estimated BW for plotting
+        #     ax_bw.plot(times_bw_s, coef_values, label=f"{conn['cca_name']} Filter Coef", color=colors[i], linestyle=':')
     ax_bw.set_title("Bandwidth Over Time")
     ax_bw.set_xlabel("Time (s)")
     ax_bw.set_ylabel("Bandwidth (MB/s)")
