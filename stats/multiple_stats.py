@@ -289,7 +289,8 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
     fig.suptitle("QUIC Overview (Multi-Connection)", fontsize=16)
 
     # Set up a color palette (one color per connection)
-    colors = plt.cm.tab20b(np.linspace(0, 1, len(connections)))
+    #colors = plt.cm.Set1(np.linspace(0, 1, len(connections)))
+    colors = list(plt.cm.tab20b.colors)[:len(connections)]
 
     # --- Subplot 1: RTT CDF ---
     threshold = [80, 50, 20, 10]
