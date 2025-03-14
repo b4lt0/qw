@@ -289,13 +289,17 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
     fig.suptitle("QUIC Overview (Multi-Connection)", fontsize=16)
 
     # Set up a color palette (one color per connection)
-    colors = plt.cm.tab10(np.linspace(0, 1, len(connections)))
+    colors = plt.cm.tab20b(np.linspace(0, 1, len(connections)))
 
     # --- Subplot 1: RTT CDF ---
+    threshold = [80, 50, 20, 10]
     ax_rtt = axs[0, 0]
     for i, conn in enumerate(connections):
         rtt_data = conn['rtt_data']
-        cca_name = conn['cca_name']
+        if conn['cca_name']=='WESTWOOD_OWD':
+            cca_name='Delay Control ('+threshold[i]+'%)'
+        else:
+            cca_name = conn['cca_name']
         # Extract latest RTTs and filter out None values
         latest_rtts = [r for r in rtt_data[1] if r is not None]
         if not latest_rtts:
