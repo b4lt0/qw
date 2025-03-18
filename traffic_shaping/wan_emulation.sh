@@ -304,7 +304,7 @@ function tc_bw_delay_both() {
     local BDP_BYTES=$(( BYTES_PER_SEC * DELAY_MS / 1000 ))
 
     # 3) Decide a queue size in KB (multiply BDP by a safety factor)
-    local FACTOR=2
+    local FACTOR=16
     local QUEUE_KB=$(( (BDP_BYTES * FACTOR) / 1024 ))
     if [ "$QUEUE_KB" -lt 1 ]; then
         QUEUE_KB=1
