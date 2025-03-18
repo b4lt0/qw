@@ -304,7 +304,7 @@ function tc_bw_delay_both() {
     local BDP_BYTES=$(( BYTES_PER_SEC * DELAY_MS / 1000 ))
 
     # 3) Decide a queue size in KB (multiply BDP by a safety factor)
-    local FACTOR=4
+    local FACTOR=2
     local QUEUE_KB=$(( (BDP_BYTES * FACTOR) / 1024 ))
     if [ "$QUEUE_KB" -lt 1 ]; then
         QUEUE_KB=1
@@ -344,112 +344,6 @@ function tc_del_bw_delay_both() {
     # Remove ingress shaping
     tc_del_ingress_with_delay "$DEV"
 }
-
-# This function applies delay and sets a queue limit (number of packets)
-# on both egress and ingress traffic.
-#
-# INPUT PARAMETERS:
-#   1 : Device interface (e.g., eth0)
-#   2 : Delay in milliseconds (e.g., 50)
-#   3 : Netem queue limit in packets (e.g., 1000)
-function tc_delay_queue_limit_both() {
-    local DEV=$1
-    local DELAY_MS=$2
-    local LIMIT_PKTS=$3
-
-    echo ">>> Applying delay (${DELAY_MS}ms) and queue limit (${LIMIT_PKTS} pkts) on both ingress and egress for $DEV"
-
-    # --- EGRESS ---
-    # Apply netem directly on the egress side
-    $tc qdisc add dev $DEV root netem delay ${DELAY_MS}ms limit ${LIMIT_PKTS}
-
-    # --- INGRESS ---
-    # Load the ifb module and bring up ifb1 for ingress shaping
-    $modprobe ifb
-    $ip link set dev ifb1 up
-
-    # Add an ingress qdisc on $DEV and redirect all traffic to ifb1
-    $tc qdisc add dev $DEV ingress
-    $tc filter add dev $DEV parent ffff: protocol ip u32 match u32 0 0 \
-         action mirred egress redirect dev ifb1
-
-    # Apply netem on the ifb1 interface for ingress delay and limit
-    $tc qdisc add dev ifb1 root netem delay ${DELAY_MS}ms limit ${LIMIT_PKTS}
-}
-
-# This function applies bandwidth limitations using TBF on both egress and ingress traffic.
-#
-# INPUT PARAMETERS:
-#   1 : Device interface (e.g., eth0)
-#   2 : Bandwidth limit in kilobytes per second (KBps)
-#   3 : Queue size in KB (this value is used to calculate the byte limit; e.g., 30)
-function tc_bandwidth_both() {
-    local DEV=$1
-    local KBPS=$2
-    local QUEUE_KB=$3
-
-    # Convert KBps to kbit/s for tc (1 KBps ~ 8 kbit/s)
-    local BRATE=$(( KBPS * 8 ))
-    local MTU=1000
-    local BURST=$(( MTU * 10 ))
-    local LIMIT=$(( MTU * QUEUE_KB ))
-
-    echo ">>> Applying bandwidth limitation on both ingress and egress for $DEV"
-    echo "    * Bandwidth: ${BRATE}kbit (${KBPS} KBps)"
-    echo "    * Queue size: ${QUEUE_KB}KB (limit: ${LIMIT} bytes)"
-
-    # --- EGRESS ---
-    # Install TBF as the root qdisc for egress bandwidth shaping
-    $tc qdisc add dev $DEV root handle 1: tbf rate ${BRATE}kbit \
-         minburst $MTU burst ${BURST} limit ${LIMIT}
-
-    # --- INGRESS ---
-    # Load the ifb module and bring up ifb1 for ingress shaping
-    $modprobe ifb
-    $ip link set dev ifb1 up
-
-    # Add an ingress qdisc on $DEV and redirect all traffic to ifb1
-    $tc qdisc add dev $DEV ingress
-    $tc filter add dev $DEV parent ffff: protocol ip u32 match u32 0 0 \
-         action mirred egress redirect dev ifb1
-
-    # Install TBF on ifb1 to limit the ingress bandwidth
-    $tc qdisc add dev ifb1 root handle 1: tbf rate ${BRATE}kbit \
-         minburst $MTU burst ${BURST} limit ${LIMIT}
-}
-
-# This function updates the bandwidth limitation (TBF parameters) on both
-# egress and ingress traffic, while leaving the static delay/queue (netem)
-# configuration intact.
-#
-# INPUT PARAMETERS:
-#   1 : Device interface (e.g., eno1)
-#   2 : Bandwidth limit in kilobytes per second (KBps)
-#   3 : Queue size in KB for the TBF (e.g., 80)
-function tc_update_bandwidth_both() {
-    local DEV=$1
-    local KBPS=$2
-    local QUEUE_KB=$3
-
-    # Convert KBps to kbit/s (1 KBps ≈ 8 kbit/s)
-    local BRATE=$(( KBPS * 8 ))
-    local MTU=1000
-    local BURST=$(( MTU * 10 ))
-    local LIMIT=$(( MTU * QUEUE_KB ))
-
-    echo ">>> Updating bandwidth limitation on both ingress and egress for $DEV"
-    echo "    * Bandwidth: ${BRATE}kbit (${KBPS} KBps)"
-    echo "    * Queue size: ${QUEUE_KB}KB (limit: ${LIMIT} bytes)"
-
-    # Update the TBF qdisc on the egress side (which is at the root on $DEV)
-    $tc qdisc change dev $DEV root handle 1: tbf rate ${BRATE}kbit \
-         minburst $MTU burst ${BURST} limit ${LIMIT}
-
-    # Update the TBF qdisc on the ingress side (on ifb1)
-    $tc qdisc change dev ifb1 root handle 1: tbf rate ${BRATE}kbit \
-         minburst $MTU burst ${BURST} limit ${LIMIT}
-}
-
 
 # Finally, run the passed command.
 $@
