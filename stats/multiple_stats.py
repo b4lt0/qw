@@ -600,7 +600,7 @@ def main():
                     'metrics': metrics,
                 })
         else:
-            required_subdirs = ['westwood+', 'westwood_owd', 'cubic', 'bbr2']
+            required_subdirs = ['westwood+', 'newreno', 'cubic', 'bbr2']
             for sub in required_subdirs:
                 sub_path = os.path.join(args.parent_dir, sub)
                 try:
