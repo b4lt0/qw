@@ -1,21 +1,39 @@
 #!/bin/bash
-# Usage: ./start_flows.sh [-owd]
+# Usage: ./start_flows.sh -p <base_port> [-owd]
 # If -owd is provided, the script will add --use_ack_receive_timestamps=true to each command.
 
-# Check if the -owd flag was provided.
+# Default base port
+BASE_PORT=50000
 USE_ACK=""
-for arg in "$@"; do
-    if [ "$arg" = "-owd" ]; then
-        USE_ACK=" --use_ack_receive_timestamps=true"
-    fi
+
+# Parse command line arguments.
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -p)
+      shift
+      if [[ $# -gt 0 ]]; then
+        BASE_PORT=$1
+      else
+        echo "Error: -p requires a port number."
+        exit 1
+      fi
+      ;;
+    -owd)
+      USE_ACK=" --use_ack_receive_timestamps=true"
+      ;;
+    *)
+      echo "Unknown option: $1"
+      exit 1
+      ;;
+  esac
+  shift
 done
 
 # Array of file sizes (in MB) for each flow.
 filesizes=(100 80 60 40)
 
-# Number of flows to start and the base port.
+# Number of flows to start.
 NUM_FLOWS=4
-BASE_PORT=50000
 
 for ((i=0; i<NUM_FLOWS; i++)); do
     CURRENT_PORT=$((BASE_PORT + i))
@@ -39,4 +57,6 @@ for ((i=0; i<NUM_FLOWS; i++)); do
     sleep 10
 done
 
-echo "All flows have been started."
+echo "All flows have been started. Waiting for them to finish..."
+wait
+echo "All flows have finished."

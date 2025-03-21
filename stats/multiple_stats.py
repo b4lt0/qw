@@ -217,7 +217,7 @@ def extract_bandwidth_metrics(qlog_data):
 #                      New Real (Sampled) Bandwidth Computation               #
 ###############################################################################
 
-def compute_sampled_bw(rtt_data, cc_data, common_base):
+def compute_sampled_bw(rtt_data, cc_data, start_time):
     """
     For each RTT event, compute the "real bandwidth" sample as:
     
@@ -227,13 +227,13 @@ def compute_sampled_bw(rtt_data, cc_data, common_base):
     the latest RTT (if available) and converted to seconds.
     
     In this version, the sample is timestamped at the end of the RTT interval.
-    Finally, the sample times are normalized using the provided common_base time.
+    The sample times are converted to seconds without alignment.
     
     Returns:
-        sampled_bw_times_norm (list of float): Normalized sample times (seconds)
+        sampled_bw_times (list of float): Sample times in seconds
         bw_samples (list of float): Real bandwidth samples (in Mb/s)
     """
-    times_rtt, latest_rtts, min_rtts, smoothed_rtts = rtt_data
+    times_rtt, latest_rtts, _, _ = rtt_data
     times_cc, data_sent, data_acked, data_lost, _, _, _, _, _, _ = cc_data
 
     times_cc_arr = np.array(times_cc)
@@ -261,26 +261,26 @@ def compute_sampled_bw(rtt_data, cc_data, common_base):
         # Convert bytes/s to Mb/s: multiply by 8 then divide by (1024*1024)
         bw_mbs = (bw_bytes_per_sec * 8) / (1024.0 * 1024.0)
 
-        # Timestamp the sample at the end of the RTT interval
-        sample_time = t_end
+        # Timestamp the sample at the end of the RTT interval, convert to seconds
+        sample_time = t_end / 1e6
         bw_samples.append(bw_mbs)
         sampled_bw_times.append(sample_time)
 
-    # Normalize using the common base time
-    sampled_bw_times_norm = [(t - common_base) / 1e6 for t in sampled_bw_times]
-    return sampled_bw_times_norm, bw_samples
+    return sampled_bw_times, bw_samples
+
+###############################################################################
+#                           Time Conversion Function                          #
+###############################################################################
+
+def convert_times(times_us):
+    """
+    Convert times from microseconds to seconds without alignment.
+    """
+    return [t / 1e6 for t in times_us]
 
 ###############################################################################
 #                                Plot Functions                               #
 ###############################################################################
-
-def normalize_times(times_us, common_base):
-    """
-    Convert times from microseconds to seconds, normalized using the provided common_base.
-    """
-    if not times_us:
-        return []
-    return [(t - common_base) / 1e6 for t in times_us]
 
 def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=None):
     """
@@ -290,7 +290,7 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
       - Subplot 3: Congestion Control (CWND, optionally Bytes in Flight) in Kb
       - Subplot 4: Bandwidth (Estimated and Sampled) in Mb/s
 
-    All time axes are normalized using the common base.
+    The time axes now reflect each flow's actual (absolute) start time.
     """
     fig, axs = plt.subplots(2, 2, figsize=(16, 12))
     fig.suptitle("QUIC Overview (Multi-Connection)", fontsize=16)
@@ -298,10 +298,11 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
     colors = list(plt.cm.Set1.colors)[:len(connections)]
 
     # --- Subplot 1: RTT CDF ---
-    threshold = [80, 50, 20, 10]  # (if you wish to label WESTWOOD_OWD differently)
+    threshold = [80, 50, 20, 10]
     ax_rtt = axs[0, 0]
     for i, conn in enumerate(connections):
         rtt_data = conn['rtt_data']
+        # Label adjustment for WESTWOOD_OWD if desired
         if conn['cca_name'] == 'WESTWOOD_OWD':
             cca_name = 'Delay Control (' + str(threshold[i]) + '%)'
         else:
@@ -325,8 +326,7 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
     ax_data = axs[0, 1]
     for i, conn in enumerate(connections):
         cc_data = conn['cc_data']
-        common_base = conn['common_base']
-        times_cc_s = normalize_times(cc_data[0], common_base)
+        times_cc_s = convert_times(cc_data[0])
         # Convert data from bytes to megabits (Mb): multiply by 8 then divide by (1024*1024)
         data_sent_mbit = [s * 8 / (1024.0 * 1024.0) for s in cc_data[1]]
         data_acked_mbit = [a * 8 / (1024.0 * 1024.0) for a in cc_data[2]]
@@ -336,7 +336,7 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
         ax_data.plot(times_cc_s, data_acked_mbit, label=f"{label_prefix} Acked", color=colors[i], linestyle='--')
         ax_data.plot(times_cc_s, data_lost_mbit, label=f"{label_prefix} Lost", color=colors[i], linestyle='-.')
         # Plot timeouts as vertical lines
-        timeout_s = normalize_times(cc_data[7], common_base)
+        timeout_s = convert_times(cc_data[7])
         for t in timeout_s:
             ax_data.axvline(t, color=colors[i], linestyle=':', alpha=0.5)
     ax_data.set_title("Data Over Time")
@@ -349,20 +349,19 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
     ax_cc = axs[1, 0]
     for i, conn in enumerate(connections):
         cc_data = conn['cc_data']
-        common_base = conn['common_base']
-        times_cc_s = normalize_times(cc_data[0], common_base)
-        # Convert CWND from bytes to kilobits: (bytes * 8 / 1024) equals (bytes / 128)
+        times_cc_s = convert_times(cc_data[0])
+        # Convert CWND from bytes to kilobits (bytes/128)
         cwnd_kbit = [c / 128.0 for c in cc_data[4]]
         ax_cc.plot(times_cc_s, cwnd_kbit, label=f"{conn['cca_name']} CWND", color=colors[i], linestyle='-')
         if plot_bytes_in_flight:
             bif_kbit = [b / 128.0 for b in cc_data[5]]
             ax_cc.plot(times_cc_s, bif_kbit, label=f"{conn['cca_name']} BIF", color=colors[i], linestyle='--')
-        # Plot ssthresh as a step function (convert ssthresh to kilobits)
+        # Plot ssthresh as a step function (convert to kilobits)
         ssthresh_list = cc_data[6]
         if ssthresh_list:
             ssthresh_times = [t for t, _ in ssthresh_list]
             ssthresh_values = [val / 128.0 for _, val in ssthresh_list]
-            ssthresh_times_s = normalize_times(ssthresh_times, common_base)
+            ssthresh_times_s = convert_times(ssthresh_times)
             ax_cc.step(ssthresh_times_s, ssthresh_values, label=f"{conn['cca_name']} SSThresh", color=colors[i], linestyle=':')
     ax_cc.set_title("Congestion Control Over Time")
     ax_cc.set_xlabel("Time (s)")
@@ -374,9 +373,8 @@ def plot_all_subplots_multi(connections, plot_bytes_in_flight=False, save_path=N
     ax_bw = axs[1, 1]
     for i, conn in enumerate(connections):
         bw_data = conn['bw_data']
-        common_base = conn['common_base']
-        times_bw_s = normalize_times(bw_data[0], common_base)
-        # Convert estimated bandwidth from bytes/s to Mb/s (multiply by 8)
+        times_bw_s = convert_times(bw_data[0])
+        # Convert estimated bandwidth from bytes/s to Mb/s (×8 conversion)
         bw_estimates_mbs = [(bw * 8) / (1024.0 * 1024.0) if bw is not None else None for bw in bw_data[1]]
         ax_bw.plot(times_bw_s, bw_estimates_mbs, label=f"{conn['cca_name']} Est BW", color=colors[i], linestyle='-')
         # Plot sampled bandwidth
@@ -453,7 +451,7 @@ def compute_summary_metrics(rtt_data, cc_data, bw_data):
     loss_rate_percent = (final_lost / float(final_sent)) * 100.0 if final_sent > 0 else 0.0
 
     if cwnd_values:
-        # Convert cwnd from bytes to kilobits (bytes * 8 / 1024 = bytes/128)
+        # Convert cwnd from bytes to kilobits (bytes/128)
         cwnd_kbit_values = [c / 128.0 for c in cwnd_values]
         avg_cwnd_kbit = statistics.mean(cwnd_kbit_values)
         std_cwnd_kbit = statistics.stdev(cwnd_kbit_values) if len(cwnd_kbit_values) > 1 else 0.0
@@ -493,7 +491,6 @@ def print_summary_metrics(metrics):
     """
     print("------------------------------------------------------------")
     print("Summary Metrics:")
-
     avg_bw_str       = format_speed(metrics['avg_bw_mbps'])
     throughput_str   = format_speed(metrics['throughput_mbps'])
     goodput_str      = format_speed(metrics['goodput_mbps'])
@@ -520,6 +517,45 @@ def print_summary_metrics(metrics):
     print("------------------------------------------------------------")
 
 ###############################################################################
+#             Final Aggregation of Summary Metrics Across Flows               #
+###############################################################################
+
+def compute_final_summary(metrics_list):
+    """
+    Given a list of per-flow summary metrics dictionaries, compute a final summary
+    where each averaged metric is the mean over flows and the std is the standard 
+    deviation of the per-flow averages.
+    """
+    final = {}
+    keys = ['avg_rtt_ms', 'avg_bw_mbps', 'throughput_mbps', 'goodput_mbps', 
+            'loss_rate_percent', 'avg_cwnd_kbit', 'total_time_s', 'num_retransmissions']
+    for key in keys:
+        values = [m[key] for m in metrics_list if not math.isnan(m[key])]
+        if values:
+            final[key + '_avg'] = statistics.mean(values)
+            final[key + '_std'] = statistics.stdev(values) if len(values) > 1 else 0.0
+        else:
+            final[key + '_avg'] = math.nan
+            final[key + '_std'] = math.nan
+    return final
+
+def print_final_summary(final):
+    """
+    Print the final aggregated summary metrics.
+    """
+    print("============================================================")
+    print("Final Aggregated Summary Metrics (averaged over flows):")
+    print(f"{'Average RTT:':30s}{final['avg_rtt_ms_avg']:.2f} ms ± {final['avg_rtt_ms_std']:.2f} ms")
+    print(f"{'Average BW:':30s}{format_speed(final['avg_bw_mbps_avg'])} ± {format_speed(final['avg_bw_mbps_std'])}")
+    print(f"{'Throughput:':30s}{format_speed(final['throughput_mbps_avg'])} ± {format_speed(final['throughput_mbps_std'])}")
+    print(f"{'Goodput:':30s}{format_speed(final['goodput_mbps_avg'])} ± {format_speed(final['goodput_mbps_std'])}")
+    print(f"{'Loss Rate:':30s}{final['loss_rate_percent_avg']:.2f} % ± {final['loss_rate_percent_std']:.2f} %")
+    print(f"{'Average CWND:':30s}{final['avg_cwnd_kbit_avg']:.2f} Kb ± {final['avg_cwnd_kbit_std']:.2f} Kb")
+    print(f"{'Duration:':30s}{final['total_time_s_avg']:.2f} s ± {final['total_time_s_std']:.2f} s")
+    print(f"{'Retransmissions:':30s}{final['num_retransmissions_avg']:.2f} # ± {final['num_retransmissions_std']:.2f} #")
+    print("============================================================")
+
+###############################################################################
 #                                Main Script                                  #
 ###############################################################################
 
@@ -540,6 +576,8 @@ def main():
     args = parser.parse_args()
 
     connections = []
+    per_flow_metrics = []  # to hold summary metrics per flow
+
     # If --parent-dir is provided, use it to pick the latest file from each subfolder.
     if args.parent_dir:
         if args.cca == 'same':
@@ -557,19 +595,16 @@ def main():
                 cc_data = extract_congestion_metrics(qlog_data)
                 bw_data = extract_bandwidth_metrics(qlog_data)
 
-                base_candidates = []
-                if bw_data[0]:
-                    base_candidates.append(bw_data[0][0])
-                if cc_data[0]:
-                    base_candidates.append(cc_data[0][0])
-                common_base = min(base_candidates) if base_candidates else 0
+                # Use this flow's own start time (its first cc timestamp if available)
+                start_time = cc_data[0][0] if cc_data[0] else (bw_data[0][0] if bw_data[0] else 0)
 
-                sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
+                sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, start_time)
                 cca_name = extract_cca_name(qlog_data) or "Unknown"
 
                 metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
                 print(f"Summary Metrics for {qlog_path} ({cca_name}):")
                 print_summary_metrics(metrics)
+                per_flow_metrics.append(metrics)
 
                 connections.append({
                     'qlog_path': qlog_path,
@@ -578,7 +613,7 @@ def main():
                     'bw_data': bw_data,
                     'sampled_bw_data': sampled_bw_data,
                     'cca_name': cca_name,
-                    'common_base': common_base,
+                    'start_time': start_time,  # store individual flow start time
                     'metrics': metrics,
                 })
         else:
@@ -598,19 +633,15 @@ def main():
                 cc_data = extract_congestion_metrics(qlog_data)
                 bw_data = extract_bandwidth_metrics(qlog_data)
 
-                base_candidates = []
-                if bw_data[0]:
-                    base_candidates.append(bw_data[0][0])
-                if cc_data[0]:
-                    base_candidates.append(cc_data[0][0])
-                common_base = min(base_candidates) if base_candidates else 0
+                start_time = cc_data[0][0] if cc_data[0] else (bw_data[0][0] if bw_data[0] else 0)
 
-                sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, common_base)
+                sampled_bw_data = compute_sampled_bw(rtt_data, cc_data, start_time)
                 cca_name = extract_cca_name(qlog_data) or sub
 
                 metrics = compute_summary_metrics(rtt_data, cc_data, bw_data)
                 print(f"Summary Metrics for {qlog_path} ({cca_name}):")
                 print_summary_metrics(metrics)
+                per_flow_metrics.append(metrics)
 
                 connections.append({
                     'qlog_path': qlog_path,
@@ -619,12 +650,16 @@ def main():
                     'bw_data': bw_data,
                     'sampled_bw_data': sampled_bw_data,
                     'cca_name': cca_name,
-                    'common_base': common_base,
+                    'start_time': start_time,
                     'metrics': metrics,
                 })
 
-    # Plot all subplots for the connections
+    # Plot all subplots for the connections (using absolute times)
     plot_all_subplots_multi(connections, plot_bytes_in_flight=args.plot_bytes_in_flight, save_path=args.output)
+
+    # Compute and print final aggregated summary metrics across flows
+    final_summary = compute_final_summary(per_flow_metrics)
+    print_final_summary(final_summary)
 
 if __name__ == "__main__":
     main()
