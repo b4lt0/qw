@@ -97,7 +97,7 @@ WestwoodOWD::WestwoodOWD(QuicConnectionStateBase &conn)
       owdv_(0),
       owd_(0),
       //lossMaxRtt_(std::chrono::microseconds(0)) //fixed for test in lab
-      lossMaxRtt_(std::chrono::microseconds(80000)) 
+      lossMaxRtt_(std::chrono::microseconds(150000)) 
       {
 
     cwndBytes_ = boundedCwnd(
@@ -377,7 +377,7 @@ uint32_t WestwoodOWD::westwoodLowPassFilter(uint32_t a, uint32_t b) {
     // float s = static_cast<float>(step_);
     // float sigmoid = 1.0f / (1.0f + std::exp(-((s - center) / scale)));
     // float coef = sigmoid * (6.0f / 8.0f);
-    float coef = 4.0f / 10.0f;
+    float coef = 2.0f / 8.0f;
     float filtered = (coef * static_cast<float>(a)) + 
                      ((1.0f - coef) * static_cast<float>(b));
     return static_cast<uint32_t>(filtered);
