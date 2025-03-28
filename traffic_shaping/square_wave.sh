@@ -1,17 +1,48 @@
 #!/bin/bash
 set -e
 
-# This script assumes that the remote traffic shaping script now contains:
-#   - tc_bw_delay_both <DEV> <KBPS> <DELAY_MS> <LOSS_PERCENT> [QUEUE_KB] [LIMIT_PKTS]
-#       → sets up the TBF (for bandwidth) with a netem child (for delay, loss, queue limit)
-#
-#   - tc_update_bandwidth_both <DEV> <KBPS> <QUEUE_KB>
-#       → updates the TBF parameters using "tc qdisc change"
-#
-#   - tc_del_bw_delay_both <DEV>
-#       → removes the entire qdisc hierarchy (both TBF and netem on egress and ingress)
+# Configuration parameters
+REMOTE_HOST="balillus@10.73.0.20"
+DEV="eno1"
+DELAY_MS=10
+# (Bandwidth values remain as before – note these should be numeric, e.g. using arithmetic expansion if needed)
+LOW_BW=$((1024*8))    # in kbit
+HIGH_BW=$((2048*8))   # in kbit
+BURST=20000
+LIMIT_PACKETS=67    # netem’s packet limit (as in the snippet)
+LIMIT=81920         # TBF’s queue size limit (as in the snippet)
+MTU=1500            # assumed value for minburst
 
-# Start local HTTP client (50MB file) in the background
+# --- Remote Setup: Install delay shaping on both egress and ingress ---
+echo "Setting up remote delay shaping on ${DEV} and IFB..."
+ssh -o StrictHostKeyChecking=no $REMOTE_HOST <<'EOF'
+  set -e
+  DEV="eno1"
+  DELAY_MS=10
+  BURST=20000
+  LIMIT=81920
+  LIMIT_PACKETS=67
+  MTU=1250
+
+  # EGRESS: Install TBF for bandwidth limiting with a queue limit,
+  # then attach netem for delay (and its own packet limit).
+  sudo tc qdisc replace dev $DEV root handle 1: tbf rate 100mbit minburst $MTU burst $BURST limit $LIMIT
+  sudo tc qdisc add dev $DEV parent 1:1 handle 10: netem delay ${DELAY_MS}ms limit ${LIMIT_PACKETS}
+
+  # INGRESS: Setup an IFB device and mirror similar shaping.
+  sudo modprobe ifb
+  sudo ip link set dev ifb0 up
+  # Redirect all ingress traffic on $DEV to ifb0
+  sudo tc qdisc replace dev $DEV ingress
+  sudo tc filter replace dev $DEV parent ffff: protocol ip u32 match u32 0 0 \
+      action mirred egress redirect dev ifb0
+
+  # On ifb0, apply the same TBF+netem structure for ingress shaping.
+  sudo tc qdisc replace dev ifb0 root handle 1: tbf rate 100mbit minburst $MTU burst ${BURST} limit $LIMIT
+  sudo tc qdisc add dev ifb0 parent 1:1 handle 10: netem delay ${DELAY_MS}ms limit ${LIMIT_PACKETS}
+EOF
+
+# --- Start the client ---
 echo -n "Starting local hq client for /largefile50M.bin... "
 start=$(date +%s)
 sleep 0.5 && /qw/proxygen/proxygen/_build/proxygen/httpserver/hq \
@@ -24,60 +55,42 @@ sleep 0.5 && /qw/proxygen/proxygen/_build/proxygen/httpserver/hq \
 HQ50_PID=$!
 echo "done."
 
-# -------------------------------------------------------------------
-# Set static delay, queue, and initial bandwidth shaping once.
-#
-# This installs a qdisc hierarchy on eno1 (and via ifb1 for ingress) that
-# includes a TBF qdisc (handle 1:) for bandwidth limiting and a netem child
-# (handle 10:) for delay, loss, and packet queue limits.
-#
-# In this example:
-#   - 1024 KBps is the initial bandwidth,
-#   - 10ms is the delay,
-#   - 0% loss,
-#   - 80 KB is used for the TBF queue size,
-#   - 67 packets is the netem limit.
-ssh -o StrictHostKeyChecking=no balillus@10.73.0.20 \
-  "sudo /home/balillus/qw/traffic_shaping/wan_emulation.sh tc_bw_delay_both eno1 1024 10 0 80 67"
-echo "Static delay, queue and initial bandwidth set."
-# -------------------------------------------------------------------
-
-# Loop toggling between low and high bandwidth shaping until the client completes
+# --- Inner Loop: Toggle bandwidth only ---
 while kill -0 $HQ50_PID 2>/dev/null; do
-    # --- LOW BANDWIDTH UPDATE ---
-    # Update bandwidth shaping to low: 1024 KBps with an 80KB queue.
-    ssh -o StrictHostKeyChecking=no balillus@10.73.0.20 \
-      "sudo /home/balillus/qw/traffic_shaping/wan_emulation.sh tc_update_bandwidth_both eno1 1024 80"
-    echo "Low bandwidth updated"
+    # Set low bandwidth on both egress and ingress (adjusting the TBF rate)
+    ssh -o StrictHostKeyChecking=no $REMOTE_HOST "sudo tc qdisc change dev $DEV root handle 1: tbf rate ${LOW_BW}kbit minburst $MTU burst $BURST limit $LIMIT; \
+                                               sudo tc qdisc change dev ifb0 root handle 1: tbf rate ${LOW_BW}kbit minburst $MTU burst $BURST limit $LIMIT"
+    echo "Low bw set to ${LOW_BW} kbit"
     sleep 8
 
-    # Check if the client is still running before switching
+    # Check if client is still running
     if ! kill -0 $HQ50_PID 2>/dev/null; then
         break
     fi
 
-    # --- HIGH BANDWIDTH UPDATE ---
-    # Update bandwidth shaping to high: 2048 KBps with an 80KB queue.
-    ssh -o StrictHostKeyChecking=no balillus@10.73.0.20 \
-      "sudo /home/balillus/qw/traffic_shaping/wan_emulation.sh tc_update_bandwidth_both eno1 2048 80"
-    echo "High bandwidth updated"
+    # Set high bandwidth on both egress and ingress
+    ssh -o StrictHostKeyChecking=no $REMOTE_HOST "sudo tc qdisc change dev $DEV root handle 1: tbf rate ${HIGH_BW}kbit minburst $MTU burst $BURST limit $LIMIT; \
+                                               sudo tc qdisc change dev ifb0 root handle 1: tbf rate ${HIGH_BW}kbit minburst $MTU burst $BURST limit $LIMIT"
+    echo "High bw set to ${HIGH_BW} kbit"
     sleep 8
 
-    # Optionally print elapsed time
     end=$(date +%s)
     elapsed=$((end - start))
     echo "Elapsed time: $elapsed s"
 done
 
-# -------------------------------------------------------------------
-# Clean up: Remove the entire qdisc hierarchy (both static delay and bandwidth shaping)
-ssh -o StrictHostKeyChecking=no balillus@10.73.0.20 \
-  "sudo /home/balillus/qw/traffic_shaping/wan_emulation.sh tc_del_bw_delay_both eno1"
-echo "Static delay, queue and bandwidth shaping removed."
-# -------------------------------------------------------------------
-
 echo -n "Waiting for local hq client to complete... "
 wait $HQ50_PID
 echo "Local hq client transfer completed."
+
+# --- Remote Cleanup: Remove all shaping ---
+echo "Cleaning up remote shaping..."
+ssh -o StrictHostKeyChecking=no $REMOTE_HOST <<'EOF'
+  DEV="eno1"
+  sudo tc qdisc del dev $DEV root || true
+  sudo tc qdisc del dev $DEV ingress || true
+  sudo tc qdisc del dev ifb0 root || true
+  sudo ip link set dev ifb0 down || true
+EOF
 
 exit 0

@@ -30,4 +30,4 @@ if ip link show ifb1 &>/dev/null; then
     ip link set dev ifb1 down 2>/dev/null
 fi
 
-echo "All traffic control rules have been removed from $IFACE (and ifb1 if it was used)."
+echo "All traffic control rules have been removed from $IFACE (and ifb1 if it was used)." 
