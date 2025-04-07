@@ -247,7 +247,7 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
             static_cast<uint64_t>((bandwidthEstimate_ * rttMinUs / 1.0e6)),
             2 * quicConnectionState_.udpSendPacketLen);*/
         ssthresh_ = std::max(
-            static_cast<uint64_t>(bandwidthEstimate_ * (rttMinUs + (0.5 * 50000)) / 1.0e6),
+            static_cast<uint64_t>(bandwidthEstimate_ * (rttMinUs + (0.8 * 50000)) / 1.0e6),
             2 * quicConnectionState_.udpSendPacketLen);
         cwndBytes_ = ssthresh_;
         cwndBytes_ = boundedCwnd(
@@ -258,7 +258,7 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
 
         // owd_ = 0; these are for delay control 0
     
-        owd_ = 0.5 * 50000;
+        owd_ = 0.8 * 50000;
         owdv_ = 0;
 
         //lossMaxRtt_ = rttSampler_.maxRtt();
@@ -307,7 +307,7 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
         endOfRecovery_ = Clock::now();
         uint64_t rttMinUs = rttSampler_.minRtt().count();
         ssthresh_ = std::max(
-            static_cast<uint64_t>(bandwidthEstimate_ * (rttMinUs + (0.5 * 50000)) / 1.0e6),
+            static_cast<uint64_t>(bandwidthEstimate_ * (rttMinUs + (0.8 * 50000)) / 1.0e6),
             2 * quicConnectionState_.udpSendPacketLen);
         cwndBytes_ = ssthresh_;
         cwndBytes_ = boundedCwnd(
@@ -318,7 +318,7 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
 
         
         // owd_ = 0.5 * (lossMaxRtt_.count() - rttMinUs);
-        owd_ = 0.5 * 50000;
+        owd_ = 0.8 * 50000;
         owdv_ = 0;
                 
         VLOG(10) << __func__ << " exit slow start, ssthresh=" << ssthresh_
@@ -387,7 +387,7 @@ uint32_t WestwoodOWD::westwoodLowPassFilter(uint32_t a, uint32_t b) {
     // float s = static_cast<float>(step_);
     // float sigmoid = 1.0f / (1.0f + std::exp(-((s - center) / scale)));
     // float coef = sigmoid * (6.0f / 8.0f);
-    float coef = 2.0f / 8.0f;
+    float coef = 6.0f / 8.0f;
     float filtered = (coef * static_cast<float>(a)) + 
                      ((1.0f - coef) * static_cast<float>(b));
     return static_cast<uint32_t>(filtered);
