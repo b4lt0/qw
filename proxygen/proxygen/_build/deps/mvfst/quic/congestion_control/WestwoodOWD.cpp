@@ -296,9 +296,6 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
 
     uint64_t rttMinUs = rttSampler_.minRtt().count();
 
-    owd_ = 0.5 * (lossMaxRtt_.count() - rttMinUs);
-    owdv_ = 0;
-
     //lossMaxRtt_ = rttSampler_.maxRtt();
 
     if (rttSampler_.minRttExpired()) {
@@ -318,6 +315,10 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
             quicConnectionState_.udpSendPacketLen,
             quicConnectionState_.transportSettings.maxCwndInMss,
             quicConnectionState_.transportSettings.minCwndInMss);
+
+        
+        owd_ = 0.5 * (lossMaxRtt_.count() - rttMinUs);
+        owdv_ = 0;
                 
         VLOG(10) << __func__ << " exit slow start, ssthresh=" << ssthresh_
                  << " packetNum=" << *loss.largestLostPacketNum
