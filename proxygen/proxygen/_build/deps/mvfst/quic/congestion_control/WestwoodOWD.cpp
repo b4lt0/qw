@@ -294,6 +294,8 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
     DCHECK(loss.largestLostPacketNum.has_value() && loss.largestLostSentTime.has_value());
     subtractAndCheckUnderflow(quicConnectionState_.lossState.inflightBytes, loss.lostBytes);
 
+    uint64_t rttMinUs = rttSampler_.minRtt().count();
+
     owd_ = 0.5 * (lossMaxRtt_.count() - rttMinUs);
     owdv_ = 0.5 * (lossMaxRtt_.count() - rttMinUs);
 
