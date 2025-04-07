@@ -247,7 +247,7 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
             static_cast<uint64_t>((bandwidthEstimate_ * rttMinUs / 1.0e6)),
             2 * quicConnectionState_.udpSendPacketLen);*/
         ssthresh_ = std::max(
-            static_cast<uint64_t>(bandwidthEstimate_ * (rttMinUs + (0.5 * (lossMaxRtt_.count() - rttMinUs))) / 1.0e6),
+            static_cast<uint64_t>(bandwidthEstimate_ * (rttMinUs + (0.5 * 50000)) / 1.0e6),
             2 * quicConnectionState_.udpSendPacketLen);
         cwndBytes_ = ssthresh_;
         cwndBytes_ = boundedCwnd(
@@ -307,7 +307,7 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
         endOfRecovery_ = Clock::now();
         uint64_t rttMinUs = rttSampler_.minRtt().count();
         ssthresh_ = std::max(
-            static_cast<uint64_t>(bandwidthEstimate_ * (rttMinUs + (0.5 * (lossMaxRtt_.count() - rttMinUs))) / 1.0e6),
+            static_cast<uint64_t>(bandwidthEstimate_ * (rttMinUs + (0.5 * 50000)) / 1.0e6),
             2 * quicConnectionState_.udpSendPacketLen);
         cwndBytes_ = ssthresh_;
         cwndBytes_ = boundedCwnd(
