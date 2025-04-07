@@ -97,7 +97,7 @@ WestwoodOWD::WestwoodOWD(QuicConnectionStateBase &conn)
       owdv_(0),
       owd_(0),
       //lossMaxRtt_(std::chrono::microseconds(0)) //fixed for test in lab
-      lossMaxRtt_(std::chrono::microseconds(200000)) 
+      lossMaxRtt_(std::chrono::microseconds(100000)) 
       {
 
     cwndBytes_ = boundedCwnd(
@@ -243,7 +243,7 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
     // If the delay condition is met, adjust ssthresh and cwnd.
     if (delayControl(0.8)) {
         uint64_t rttMinUs = rttSampler_.minRtt().count();
-        /* ssthresh_ = std::max(
+        /* ssthresh_ = std::max( these are for delay control 0
             static_cast<uint64_t>((bandwidthEstimate_ * rttMinUs / 1.0e6)),
             2 * quicConnectionState_.udpSendPacketLen);*/
         ssthresh_ = std::max(
@@ -256,8 +256,11 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
             quicConnectionState_.transportSettings.maxCwndInMss,
             quicConnectionState_.transportSettings.minCwndInMss);
 
-        owd_ = 0;
+        // owd_ = 0; these are for delay control 0
+    
+        owd_ = 0.3 * (lossMaxRtt_.count() - rttMinUs);
         owdv_ = 0;
+
         //lossMaxRtt_ = rttSampler_.maxRtt();
     }
 
