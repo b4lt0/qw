@@ -302,7 +302,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     timeout_s = normalize_times(timeouts, common_base)
 
     # Convert units for plotting
-    latest_rtts_ms = [r / 1000.0 for r in latest_rtts if r is not None]
+    latest_rtts_ms = [r / 1000.0 for r in smoothed_rtts if r is not None]
     min_rtts_ms = [r / 1000.0 for r in min_rtts if r is not None]
     smoothed_rtts_ms = [r / 1000.0 for r in smoothed_rtts if r is not None]
 
@@ -324,9 +324,9 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
     # Subplot 1: RTT (and one way delay and max RTT if provided)
     ax_rtt = axs[0, 0]
     if times_rtt_s and latest_rtts_ms:
-        ax_rtt.plot(times_rtt_s, latest_rtts_ms, label='Latest RTT (ms)')
+        ax_rtt.plot(times_rtt_s, latest_rtts_ms, label='RTT (ms)')
     if times_rtt_s and min_rtts_ms:
-        ax_rtt.plot(times_rtt_s, min_rtts_ms, label='Min RTT (ms)', linestyle='--')
+        ax_rtt.plot(times_rtt_s, min_rtts_ms, label='Min RTT (ms)', marker='.')#, linestyle='--')
     # Plot one way delay and max RTT if owd_data is provided
     if owd_data is not None:
         # Expecting owd_data as a tuple: (timestamps, one way delay values, [rtt_max values])
