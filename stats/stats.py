@@ -335,7 +335,7 @@ def plot_all_subplots(rtt_data, cc_data, bw_data,
             owd_values = owd_data[1]
             if owd_timestamps and owd_values:
                 owd_timestamps_norm = normalize_times(owd_timestamps, common_base)
-                ax_rtt.plot(owd_timestamps_norm, owd_values, label='One Way Delay (ms)', color='red')
+                ax_rtt.plot(owd_timestamps_norm, owd_values, label='One Way Delay (ms)', marker='.', color='red')
         if len(owd_data) >= 3:
             rtt_max_values = owd_data[2]
             # Assume same timestamps for max RTT as for one way delay
