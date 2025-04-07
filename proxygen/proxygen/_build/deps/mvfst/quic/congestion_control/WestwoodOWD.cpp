@@ -259,7 +259,7 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
         // owd_ = 0; these are for delay control 0
     
         owd_ = 0.5 * (lossMaxRtt_.count() - rttMinUs);
-        owdv_ = 0;
+        owdv_ = 0.5 * (lossMaxRtt_.count() - rttMinUs);
 
         //lossMaxRtt_ = rttSampler_.maxRtt();
     }
@@ -294,8 +294,8 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
     DCHECK(loss.largestLostPacketNum.has_value() && loss.largestLostSentTime.has_value());
     subtractAndCheckUnderflow(quicConnectionState_.lossState.inflightBytes, loss.lostBytes);
 
-    owd_ = 0;
-    owdv_ = 0;
+    owd_ = 0.5 * (lossMaxRtt_.count() - rttMinUs);
+    owdv_ = 0.5 * (lossMaxRtt_.count() - rttMinUs);
 
     //lossMaxRtt_ = rttSampler_.maxRtt();
 
