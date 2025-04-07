@@ -258,7 +258,7 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
 
         // owd_ = 0; these are for delay control 0
     
-        owd_ = 0.5 * (lossMaxRtt_.count() - rttMinUs);
+        owd_ = 0.5 * 50000;
         owdv_ = 0;
 
         //lossMaxRtt_ = rttSampler_.maxRtt();
@@ -317,7 +317,8 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
             quicConnectionState_.transportSettings.minCwndInMss);
 
         
-        owd_ = 0.5 * (lossMaxRtt_.count() - rttMinUs);
+        // owd_ = 0.5 * (lossMaxRtt_.count() - rttMinUs);
+        owd_ = 0.5 * 50000;
         owdv_ = 0;
                 
         VLOG(10) << __func__ << " exit slow start, ssthresh=" << ssthresh_
