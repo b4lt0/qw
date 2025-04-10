@@ -2,6 +2,7 @@ import os
 import json
 import argparse
 import math
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
