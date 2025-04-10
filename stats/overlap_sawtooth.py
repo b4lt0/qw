@@ -106,24 +106,26 @@ def main():
     # Plot file 1: Westwood+ using star marker and blue color
     if norm_times1 and latest1_ms:
         plt.plot(norm_times1, latest1_ms, color='blue', marker='*', linestyle='',
-                 label="Westwood+", linewidth=lw)
-    # Plot RTT min as a horizontal dashed red line
-    if norm_times1 and min1_ms:
-        plt.axhline(y=50, color='red', linestyle='--', label="RTT min", linewidth=lw)
-    
-    # Plot file 2: Delay Control (80%) using square marker and green color
+                 label="Westwood+", linewidth=2)
+
     if norm_times2 and latest2_ms:
         plt.plot(norm_times2, latest2_ms, color='green', marker='s', linestyle='',
-                 label="Delay Control (80%)", linewidth=lw)
+                 label="Delay Control (80%)", linewidth=2)
         # Plot Delay Control threshold as a horizontal dotted orange line
-        plt.axhline(y=92, color='orange', linestyle=':', label="Delay Control threshold", linewidth=lw)
+        plt.axhline(y=92, color='purple', linestyle='-.', label="Delay Control threshold", linewidth=lw)
+
+    # Plot RTT min as a horizontal dashed red line
+    if norm_times1 and min1_ms:
+        plt.axhline(y=50, color='orange', linestyle=':', label="RTT min", linewidth=3)
+    
+    # Plot file 2: Delay Control (80%) using square marker and green color
 
     # Plot RTT Max as a horizontal dash-dot purple line
-    plt.axhline(y=114, color='purple', linestyle='-.', label="RTT Max", linewidth=lw)
+    plt.axhline(y=114, color='purple', linestyle='--', label="RTT Max", linewidth=lw)
 
-    plt.xlabel("Time (s)")
-    plt.ylabel("RTT (ms)")
-    plt.legend()
+    plt.xlabel("Time (s)", fontsize=18)
+    plt.ylabel("RTT (ms)", fontsize=18)
+    plt.legend(fontsize=16)
     plt.grid(True)
     plt.tight_layout()
 
