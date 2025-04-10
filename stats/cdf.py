@@ -2,14 +2,16 @@ import os
 import json
 import argparse
 import math
-import matplotlib.pyplot as plt
 import matplotlib
-import numpy as np
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
-
+# Set PDF and PS font type to 42 (TrueType) for better compatibility
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
-plt.rcParams.update({'font.size': 16})
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 def extract_rtt_metrics(qlog_data):
     """
@@ -58,6 +60,9 @@ def plot_cdf(connections, labels, save_path=None):
         "#17becf"   # new reno      : turquoise
     ]
     
+    # Increase line width
+    line_width = 2.5
+
     for i, conn in enumerate(connections):
         rtt_data = conn['rtt_data']
         # Extract the latest RTTs (in microseconds) and filter out None values.
@@ -71,12 +76,12 @@ def plot_cdf(connections, labels, save_path=None):
         plt.step(sorted_rtts, cdf,
                  label=labels[i],
                  color=custom_colors[i % len(custom_colors)],
-                 linewidth=2.5)  # Increased line width
+                 linewidth=line_width)
     
-    plt.xlabel("RTT (ms)")
-    plt.ylabel("CDF")
+    plt.xlabel("RTT (ms)", fontsize=18)
+    plt.ylabel("CDF", fontsize=18)
     plt.grid(True)
-    plt.legend()
+    plt.legend(fontsize=16)
     if save_path:
         plt.savefig(save_path)
         print(f"Plot saved to {save_path}")
