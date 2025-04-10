@@ -2,7 +2,16 @@
 import os
 import json
 import argparse
+import math
+import statistics 
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+
+import numpy as np
+
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 def extract_rtt_metrics(qlog_data):
     """
