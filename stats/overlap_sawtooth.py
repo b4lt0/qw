@@ -109,7 +109,7 @@ def main():
                  label="Westwood+", linewidth=2)
 
     if norm_times2 and latest2_ms:
-        plt.plot(norm_times2, latest2_ms, color='green', marker='s', linestyle='',
+        plt.plot(norm_times2, latest2_ms, color='red', marker='s', linestyle='',
                  label="Delay Control (80%)", linewidth=2)
         # Plot Delay Control threshold as a horizontal dotted orange line
         plt.axhline(y=92, color='purple', linestyle='-.', label="Delay Control threshold", linewidth=lw)
@@ -121,7 +121,7 @@ def main():
     # Plot file 2: Delay Control (80%) using square marker and green color
 
     # Plot RTT Max as a horizontal dash-dot purple line
-    plt.axhline(y=114, color='purple', linestyle='--', label="RTT Max", linewidth=lw)
+    plt.axhline(y=114, color='green', linestyle='--', label="RTT Max", linewidth=lw)
 
     plt.xlabel("Time (s)", fontsize=18)
     plt.ylabel("RTT (ms)", fontsize=18)
