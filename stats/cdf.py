@@ -2,9 +2,9 @@ import os
 import json
 import argparse
 import math
-matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib
+matplotlib.use('TkAgg')
 import numpy as np
 
 matplotlib.rcParams['pdf.fonttype'] = 42
