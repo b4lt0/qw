@@ -13,6 +13,7 @@ import numpy as np
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
+
 def extract_rtt_metrics(qlog_data):
     """
     Extract RTT metrics from a qlog file.
@@ -54,7 +55,7 @@ def main():
                     "and show min RTT, max RTT, and delay control threshold."
     )
     parser.add_argument("westwood_plus_qlog", help="Path to the Westwood+ qlog file")
-    parser.add_argument("westwood_owd_qlog", help="Path to the QDC qlog file")
+    parser.add_argument("westwood_owd_qlog", help="Path to the Westwood_owd qlog file")
     args = parser.parse_args()
 
     # Check that both files exist
@@ -73,27 +74,28 @@ def main():
     times_plus, latest_rtts_plus, min_rtts_plus = extract_rtt_metrics(qlog_data_plus)
     times_owd, latest_rtts_owd, min_rtts_owd = extract_rtt_metrics(qlog_data_owd)
 
-    # Compute a common base time (the earliest timestamp among both files)
+    # Compute a common base time (the earliest timestamp across the two files)
     base_candidates = []
-    if times_plus: base_candidates.append(min(times_plus))
-    if times_owd: base_candidates.append(min(times_owd))
+    if times_plus: 
+        base_candidates.append(min(times_plus))
+    if times_owd: 
+        base_candidates.append(min(times_owd))
     if not base_candidates:
         print("No valid RTT timestamps found in the provided qlog files.")
         exit(1)
     common_base = min(base_candidates)
 
-    # Normalize the timestamps: convert microseconds to seconds (relative to common_base)
+    # Normalize the timestamps: subtract common_base and convert from microseconds to seconds
     times_plus_sec = [(t - common_base) / 1e6 for t in times_plus]
     times_owd_sec = [(t - common_base) / 1e6 for t in times_owd]
 
     # Convert RTT values from microseconds to milliseconds.
-    # (We leave entries as-is if they are None.)
     latest_rtts_plus_ms = [r / 1000.0 for r in latest_rtts_plus if r is not None]
     latest_rtts_owd_ms  = [r / 1000.0 for r in latest_rtts_owd  if r is not None]
     min_rtts_plus_ms    = [r / 1000.0 for r in min_rtts_plus   if r is not None]
     min_rtts_owd_ms     = [r / 1000.0 for r in min_rtts_owd    if r is not None]
 
-    # Compute overall minimum and maximum RTT based on available latest RTT values from both files.
+    # Compute overall minimum and maximum RTT using the latest RTT values from both files.
     combined_latest = [r for r in latest_rtts_plus if r is not None] + \
                       [r for r in latest_rtts_owd if r is not None]
     if not combined_latest:
@@ -102,8 +104,8 @@ def main():
     global_min_rtt_ms = min(combined_latest) / 1000.0
     global_max_rtt_ms = max(combined_latest) / 1000.0
 
-    # Compute the delay control threshold as:
-    # threshold = global_min_rtt_ms + 0.8 * (global_max_rtt_ms - global_min_rtt_ms)
+    # Compute the delay control threshold:
+    # threshold = min RTT + 0.8 * (max RTT - min RTT)
     delay_threshold_ms = global_min_rtt_ms + 0.8 * (global_max_rtt_ms - global_min_rtt_ms)
 
     # Plotting
@@ -120,22 +122,22 @@ def main():
     # Plot RTT from Westwood_owd (latest RTT and min RTT)
     if times_owd_sec and latest_rtts_owd:
         plt.plot(times_owd_sec, [r / 1000.0 for r in latest_rtts_owd], 
-                 label="QUIC Delay Control RTT", marker="x")
+                 label="Westwood_owd RTT", marker="x")
     if times_owd_sec and min_rtts_owd:
         plt.plot(times_owd_sec, [r / 1000.0 for r in min_rtts_owd], 
-                 label="QUIC Delay Control Min RTT", linestyle="--")
+                 label="Westwood_owd Min RTT", linestyle="--")
     
     # Draw horizontal lines for the overall min, max, and delay control threshold
-    plt.axhline(global_min_rtt_ms, color="green", linestyle=":", 
+    plt.axhline(global_min_rtt_ms, color="green", linestyle=":",
                 label=f"Min RTT ({global_min_rtt_ms:.2f} ms)")
-    plt.axhline(global_max_rtt_ms, color="red", linestyle=":", 
+    plt.axhline(global_max_rtt_ms, color="red", linestyle=":",
                 label=f"Max RTT ({global_max_rtt_ms:.2f} ms)")
-    plt.axhline(delay_threshold_ms, color="purple", linestyle="-.", 
-                label=f"QUIC Delay Threshold ({delay_threshold_ms:.2f} ms)")
+    plt.axhline(delay_threshold_ms, color="purple", linestyle="-.",
+                label=f"Delay Threshold ({delay_threshold_ms:.2f} ms)")
 
     plt.xlabel("Time (s)")
     plt.ylabel("RTT (ms)")
-    plt.title("RTT Comparison: Westwood+ vs QUIC Delay Control")
+    plt.title("RTT Comparison: Westwood+ vs Westwood_owd")
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
