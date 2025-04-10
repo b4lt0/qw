@@ -101,7 +101,7 @@ def main():
     
     # Plot file 1: both latest RTT and min RTT
     if norm_times1 and latest1_ms:
-        plt.plot(norm_times1, latest1_ms, color='green', marker='.', linestyle='', label="Westwood+")
+        plt.plot(norm_times1, latest1_ms, color='green', marker='.', linestyle='', label="RTT")
     if norm_times1 and min1_ms:
         plt.plot(norm_times1, min1_ms, color='red', linestyle='--', label="RTT min")
     
@@ -119,6 +119,8 @@ def main():
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
+
+    plt.savefig("fig1.pdf")
     plt.show()
 
 if __name__ == "__main__":
