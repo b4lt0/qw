@@ -243,7 +243,7 @@ void WestwoodOWD::onPacketAcked(const CongestionController::AckEvent::AckPacket 
     // If the delay condition is met, adjust ssthresh and cwnd.
     if (delayControl(0.8)) {
         uint64_t rttMinUs = rttSampler_.minRtt().count();
-        ssthresh_ = std::max( these are for delay control 0
+        ssthresh_ = std::max(
             static_cast<uint64_t>((bandwidthEstimate_ * rttMinUs / 1.0e6)),
             2 * quicConnectionState_.udpSendPacketLen);
 
@@ -291,7 +291,7 @@ void WestwoodOWD::onPacketLoss(const LossEvent &loss) {
     DCHECK(loss.largestLostPacketNum.has_value() && loss.largestLostSentTime.has_value());
     subtractAndCheckUnderflow(quicConnectionState_.lossState.inflightBytes, loss.lostBytes);
 
-    uint64_t rttMinUs = rttSampler_.minRtt().count();
+    //uint64_t rttMinUs = rttSampler_.minRtt().count();
 
     //lossMaxRtt_ = rttSampler_.maxRtt();
 
