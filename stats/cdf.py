@@ -44,7 +44,20 @@ def plot_cdf(connections, labels, save_path=None):
         save_path: if provided, the plot is saved to this file.
     """
     plt.figure(figsize=(10, 7))
-    colors = plt.cm.Set1.colors
+    # Define a custom list of colors for each curve.
+    # Here, index 5 (bbr2) is set to a brownish color (#a65628) instead of yellow.
+    custom_colors = [
+    "#e41a1c",  # QUIC-DC (10%) : red
+    "#377eb8",  # QUIC-DC (20%) : blue
+    "#4daf4a",  # QUIC-DC (50%) : green
+    "#984ea3",  # QUIC-DC (80%) : purple
+    "#ff7f00",  # westwood+     : orange
+    "#a65628",  # bbr2          : brown
+    "#f781bf",  # cubic         : pink
+    "#17becf"   # new reno      : turquoise (instead of grey)
+]
+
+    
     for i, conn in enumerate(connections):
         rtt_data = conn['rtt_data']
         # Extract the latest RTTs (in microseconds) and filter out None values.
@@ -55,7 +68,7 @@ def plot_cdf(connections, labels, save_path=None):
         latest_rtts_ms = [r / 1000.0 for r in latest_rtts]
         sorted_rtts = np.sort(latest_rtts_ms)
         cdf = np.arange(1, len(sorted_rtts) + 1) / len(sorted_rtts)
-        plt.step(sorted_rtts, cdf, label=labels[i], color=colors[i % len(colors)])
+        plt.step(sorted_rtts, cdf, label=labels[i], color=custom_colors[i % len(custom_colors)])
     plt.title("CDF of Latest RTTs")
     plt.xlabel("RTT (ms)")
     plt.ylabel("CDF")
