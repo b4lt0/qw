@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
+# Set PDF and PS font types for better embedding
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
@@ -78,7 +79,7 @@ def main():
 
     # Extract RTT metrics from both files
     times1, latest1, min1 = extract_rtt_metrics(qlog_data1)
-    times2, latest2, _ = extract_rtt_metrics(qlog_data2)  # only use latest RTT for file 2
+    times2, latest2, _ = extract_rtt_metrics(qlog_data2)  # Only use latest RTT for file 2
 
     # Ensure that there is at least one timestamp in each file
     if not times1 or not times2:
@@ -99,23 +100,29 @@ def main():
     # Plot RTT metrics
     plt.figure(figsize=(10, 6))
     
-    # Plot file 1: both latest RTT and min RTT
-    if norm_times1 and latest1_ms:
-        plt.plot(norm_times1, latest1_ms, color='green', marker='.', linestyle='', label="RTT")
-    if norm_times1 and min1_ms:
-         plt.axhline(y=50, color='red', linestyle='--', label="RTT min")
+    # Set the line width for all plots
+    lw = 2.5
     
-    # Plot file 2: only latest RTT
+    # Plot file 1: Westwood+ using star marker and blue color
+    if norm_times1 and latest1_ms:
+        plt.plot(norm_times1, latest1_ms, color='blue', marker='*', linestyle='',
+                 label="Westwood+", linewidth=lw)
+    # Plot RTT min as a horizontal dashed red line
+    if norm_times1 and min1_ms:
+        plt.axhline(y=50, color='red', linestyle='--', label="RTT min", linewidth=lw)
+    
+    # Plot file 2: Delay Control (80%) using square marker and green color
     if norm_times2 and latest2_ms:
-        plt.plot(norm_times2, latest2_ms, color='blue', marker='.', linestyle='', label="Delay Control")
-        plt.axhline(y=92, color='orange', linestyle='--', label="Delay Control threshold")
+        plt.plot(norm_times2, latest2_ms, color='green', marker='s', linestyle='',
+                 label="Delay Control (80%)", linewidth=lw)
+        # Plot Delay Control threshold as a horizontal dotted orange line
+        plt.axhline(y=92, color='orange', linestyle=':', label="Delay Control threshold", linewidth=lw)
 
-    # Add horizontal line at 100ms (as maximum RTT)
-    plt.axhline(y=114, color='red', linestyle='--', label="RTT Max")
+    # Plot RTT Max as a horizontal dash-dot purple line
+    plt.axhline(y=114, color='purple', linestyle='-.', label="RTT Max", linewidth=lw)
 
     plt.xlabel("Time (s)")
     plt.ylabel("RTT (ms)")
-    plt.title("RTT")
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
