@@ -107,7 +107,7 @@ def main():
     
     # Plot file 2: only latest RTT
     if norm_times2 and latest2_ms:
-        plt.plot(norm_times2,color='blue' latest2_ms, marker='.', linestyle='', label="Delay Control (80%)")
+        plt.plot(norm_times2,color='blue', latest2_ms, marker='.', linestyle='', label="Delay Control (80%)")
         plt.axhline(y=125, color='red', linestyle='--', label="RTT_Max")
 
     # Add horizontal line at 100ms (as maximum RTT)
