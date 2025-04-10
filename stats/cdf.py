@@ -3,6 +3,7 @@ import json
 import argparse
 import math
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 
 
