@@ -101,16 +101,17 @@ def main():
     
     # Plot file 1: both latest RTT and min RTT
     if norm_times1 and latest1_ms:
-        plt.plot(norm_times1, latest1_ms, marker='.', linestyle='-', label="Latest RTT (File 1)")
+        plt.plot(norm_times1, latest1_ms, color='green', marker='.', linestyle='', label="Westwood+")
     if norm_times1 and min1_ms:
-        plt.plot(norm_times1, min1_ms, marker='.', linestyle='--', label="Min RTT (File 1)")
+        plt.plot(norm_times1, min1_ms, color='red', linestyle='--', label="RTT_min")
     
     # Plot file 2: only latest RTT
     if norm_times2 and latest2_ms:
-        plt.plot(norm_times2, latest2_ms, marker='.', linestyle='-', label="Latest RTT (File 2)")
+        plt.plot(norm_times2,color='blue' latest2_ms, marker='.', linestyle='', label="Delay Control (80%)")
+        plt.axhline(y=125, color='red', linestyle='--', label="RTT_Max")
 
     # Add horizontal line at 100ms (as maximum RTT)
-    plt.axhline(y=100, color='red', linestyle='--', label="Max RTT (100ms)")
+    plt.axhline(y=125, color='red', linestyle='--', label="RTT_Max")
 
     plt.xlabel("Time (s)")
     plt.ylabel("RTT (ms)")
