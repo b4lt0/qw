@@ -6,9 +6,9 @@ import statistics
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+
 import numpy as np
 
-# Use these settings so that the text in the pdf is editable
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
@@ -56,7 +56,7 @@ def normalize_times(times_us, base):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Process two qlog files and plot RTT metrics with inline labels.'
+        description='Process two qlog files and plot RTT metrics.'
     )
     parser.add_argument('qlog_path1', type=str, help='Path to the first qlog file')
     parser.add_argument('qlog_path2', type=str, help='Path to the second qlog file')
@@ -91,63 +91,35 @@ def main():
     norm_times1 = normalize_times(times1, base1)
     norm_times2 = normalize_times(times2, base2)
 
-    # Convert RTT values from microseconds to milliseconds (ignoring None values)
+    # Convert RTT values from microseconds to milliseconds (ignore None values)
     latest1_ms = [r / 1000.0 if r is not None else None for r in latest1]
     min1_ms = [r / 1000.0 if r is not None else None for r in min1]
     latest2_ms = [r / 1000.0 if r is not None else None for r in latest2]
 
-    # Create the plot
+    # Plot RTT metrics
     plt.figure(figsize=(10, 6))
     
-    # Plot file 1: both latest RTT and RTT min.
+    # Plot file 1: both latest RTT and min RTT
     if norm_times1 and latest1_ms:
-        plt.plot(norm_times1, latest1_ms, color='green', marker='.', linestyle='',
-                 label="RTT")  # This could represent the Westwood+ line.
-        # Add inline label "Westwood+" on the latest RTT (green) line.
-        mid_idx = len(norm_times1) // 2
-        plt.text(norm_times1[mid_idx], latest1_ms[mid_idx],
-                 "Westwood+", fontsize=10, color='green',
-                 bbox=dict(facecolor='w', edgecolor='none', pad=1.5))
-    
+        plt.plot(norm_times1, latest1_ms, color='green', marker='.', linestyle='', label="RTT")
     if norm_times1 and min1_ms:
-        plt.plot(norm_times1, min1_ms, color='red', linestyle='--', label="RTT min")
-        # Add inline label "RTT min" on the RTT min (red dashed) line.
-        mid_idx = len(norm_times1) // 2
-        plt.text(norm_times1[mid_idx], min1_ms[mid_idx],
-                 "RTT min", fontsize=10, color='red',
-                 bbox=dict(facecolor='w', edgecolor='none', pad=1.5))
+         plt.axhline(y=50, color='red', linestyle='--', label="RTT min")
     
-    # Plot file 2: only latest RTT as Delay Control.
+    # Plot file 2: only latest RTT
     if norm_times2 and latest2_ms:
-        plt.plot(norm_times2, latest2_ms, color='blue', marker='.', linestyle='',
-                 label="Delay Control")
-        # Add inline label "Delay Control" on the Delay Control (blue) line.
-        mid_idx = len(norm_times2) // 2
-        plt.text(norm_times2[mid_idx], latest2_ms[mid_idx],
-                 "Delay Control", fontsize=10, color='blue',
-                 bbox=dict(facecolor='w', edgecolor='none', pad=1.5))
-        # Also add a horizontal line indicating a Delay Control threshold.
-        plt.axhline(y=92, color='blue', linestyle='--')
-        # Place the label directly on the horizontal line.
-        # Here we use the last x-value of file 2 for positioning.
-        plt.text(norm_times2[-1], 92, "Delay Control threshold",
-                 fontsize=10, color='blue', va='bottom', ha='right',
-                 bbox=dict(facecolor='w', edgecolor='none', pad=1.5))
-    
-    # Add horizontal line at 114ms representing RTT Max
-    plt.axhline(y=114, color='red', linestyle='--')
-    # Position the RTT Max label: using the last x-value from file 1.
-    plt.text(norm_times1[-1], 114, "RTT Max", fontsize=10, color='red',
-             va='bottom', ha='right', bbox=dict(facecolor='w', edgecolor='none', pad=1.5))
+        plt.plot(norm_times2, latest2_ms, color='blue', marker='.', linestyle='', label="Delay Control")
+        plt.axhline(y=92, color='orange', linestyle='--', label="Delay Control threshold")
+
+    # Add horizontal line at 100ms (as maximum RTT)
+    plt.axhline(y=114, color='red', linestyle='--', label="RTT Max")
 
     plt.xlabel("Time (s)")
     plt.ylabel("RTT (ms)")
-    plt.title("RTT Over Time")
+    plt.title("RTT")
+    plt.legend()
     plt.grid(True)
     plt.tight_layout()
 
-    # Save the figure as a PDF.
-    # plt.savefig("output.pdf")
     plt.show()
 
 if __name__ == "__main__":
