@@ -101,15 +101,15 @@ def main():
     plt.figure(figsize=(10, 6))
     
     # Set the line width for all plots
-    lw = 2.5
+    lw = 3
     
     # Plot file 1: Westwood+ using star marker and blue color
     if norm_times1 and latest1_ms:
-        plt.plot(norm_times1, latest1_ms, color='blue', marker='*', linestyle='',
+        plt.plot(norm_times1, latest1_ms, color='blue', linestyle='-',
                  label="Westwood+", linewidth=2)
 
     if norm_times2 and latest2_ms:
-        plt.plot(norm_times2, latest2_ms, color='red', marker='s', linestyle='',
+        plt.plot(norm_times2, latest2_ms, color='red', linestyle='-',
                  label="QUIC-DC(80%)", linewidth=2)
         # Plot Delay Control threshold as a horizontal dotted orange line
         plt.axhline(y=95, color='purple', linestyle='-.', label="Delay Control threshold", linewidth=lw)
@@ -126,7 +126,7 @@ def main():
     plt.xlabel("Time (s)", fontsize=22)
     plt.ylabel("RTT (ms)", fontsize=22)
     plt.legend(fontsize=18)
-    plt.gca().tick_params(axis='both', labelsize=16)
+    plt.gca().tick_params(axis='both', labelsize=18)
     plt.grid(True)
     plt.tight_layout()
     plt.savefig('/tmp/sawtooth.pdf',  bbox_inches="tight")
