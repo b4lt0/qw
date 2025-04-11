@@ -126,7 +126,7 @@ def main():
     plt.xlabel("Time (s)", fontsize=22)
     plt.ylabel("RTT (ms)", fontsize=22)
     plt.legend(fontsize=18)
-    ax.tick_params(axis='both', labelsize=16)
+    plt.gca().tick_params(axis='both', labelsize=16)
     plt.grid(True)
     plt.tight_layout()
     plt.savefig('sawtooths.pdf',  bbox_inches="tight")
