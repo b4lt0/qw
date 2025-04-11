@@ -54,12 +54,12 @@ def main():
 
     # Define algorithm names and their corresponding custom colors
     algorithm_names = ["QUIC-DC (80%)", "Westwood+", "BBRv2", "Cubic", "New Reno"]
-    custom_colors = [
-        "#984ea3",  # QUIC-DC (80%)
-        "#ff7f00",  # Westwood+
-        "#a65628",  # BBRv2
-        "#f781bf",  # Cubic
-        "#17becf"   # New Reno
+    custom_colors = [ 
+        "#e41a1c",  # QUIC-DC (10%) : red
+        "#377eb8",  # QUIC-DC (20%) : blue
+        "#4daf4a",  # QUIC-DC (50%) : green
+        "#984ea3",  # QUIC-DC (80%) : purple
+        "#ff7f00"  # westwood+     : orange
     ]
     
     # Verify that exactly 20 files were provided
@@ -98,14 +98,14 @@ def main():
             print(f"Warning: No valid RTT data found for {algo}.")
             continue
         # Convert RTTs from microseconds to milliseconds and filter out those above 300ms
-        rtts_ms = [r / 1000.0 for r in rtts if (r / 1000.0) <= 300]
+        rtts_ms = [r / 1000.0 for r in rtts if (r / 1000.0) <= 250]
         if not rtts_ms:
             print(f"Warning: No RTT values below 300ms found for {algo}.")
             continue
         # Sort and compute the CDF
         rtts_sorted = np.sort(rtts_ms)
         cdf = np.arange(1, len(rtts_sorted) + 1) / len(rtts_sorted)
-        plt.step(rtts_sorted, cdf, label=algo, color=custom_colors[idx])
+        plt.step(rtts_sorted, cdf, label=algo, color=custom_colors[idx], linewidth=2.5)
     
     plt.xlabel("RTT (ms)", fontsize=22)
     plt.ylabel("CDF", fontsize=22)
