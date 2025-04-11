@@ -83,7 +83,7 @@ def plot_cdf(connections, labels, save_path=None):
     plt.grid(True)
     plt.legend(fontsize=18)
     plt.gca().tick_params(axis='both', labelsize=16)
-    plt.savefig('cdf.pdf',  bbox_inches="tight")
+    plt.savefig('/tmp/cdf.pdf',  bbox_inches="tight")
     plt.show()
 
 def main():
