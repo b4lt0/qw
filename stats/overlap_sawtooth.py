@@ -112,23 +112,24 @@ def main():
         plt.plot(norm_times2, latest2_ms, color='red', marker='s', linestyle='',
                  label="Delay Control (80%)", linewidth=2)
         # Plot Delay Control threshold as a horizontal dotted orange line
-        plt.axhline(y=92, color='purple', linestyle='-.', label="Delay Control threshold", linewidth=lw)
+        plt.axhline(y=95, color='purple', linestyle='-.', label="Delay Control threshold", linewidth=lw)
 
     # Plot RTT min as a horizontal dashed red line
     if norm_times1 and min1_ms:
-        plt.axhline(y=50, color='orange', linestyle=':', label="RTT min", linewidth=3)
+        plt.axhline(y=50, color='brown', linestyle='--', label="RTT min", linewidth=3)
     
     # Plot file 2: Delay Control (80%) using square marker and green color
 
     # Plot RTT Max as a horizontal dash-dot purple line
-    plt.axhline(y=114, color='green', linestyle='--', label="RTT Max", linewidth=lw)
+    plt.axhline(y=105, color='green', linestyle='--', label="RTT Max", linewidth=lw)
 
-    plt.xlabel("Time (s)", fontsize=18)
-    plt.ylabel("RTT (ms)", fontsize=18)
-    plt.legend(fontsize=16)
+    plt.xlabel("Time (s)", fontsize=22)
+    plt.ylabel("RTT (ms)", fontsize=22)
+    plt.legend(fontsize=18)
+    ax.tick_params(axis='both', labelsize=16)
     plt.grid(True)
     plt.tight_layout()
-
+    plt.savefig('sawtooths.pdf',  bbox_inches="tight")
     plt.show()
 
 if __name__ == "__main__":

@@ -78,13 +78,12 @@ def plot_cdf(connections, labels, save_path=None):
                  color=custom_colors[i % len(custom_colors)],
                  linewidth=line_width)
     
-    plt.xlabel("RTT (ms)", fontsize=18)
-    plt.ylabel("CDF", fontsize=18)
+    plt.xlabel("RTT (ms)", fontsize=222)
+    plt.ylabel("CDF", fontsize=22)
     plt.grid(True)
-    plt.legend(fontsize=16)
-    if save_path:
-        plt.savefig(save_path)
-        print(f"Plot saved to {save_path}")
+    plt.legend(fontsize=18)
+    ax.tick_params(axis='both', labelsize=16)
+    plt.savefig('cdf.pdf',  bbox_inches="tight")
     plt.show()
 
 def main():
@@ -103,10 +102,10 @@ def main():
         "QUIC-DC (20%)",
         "QUIC-DC (50%)",
         "QUIC-DC (80%)",
-        "westwood+",
-        "bbr2",
-        "cubic",
-        "new reno"
+        "Westwood+",
+        "BBRv2",
+        "Cubic",
+        "New Reno"
     ]
     
     connections = []
