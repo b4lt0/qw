@@ -13,7 +13,6 @@ import numpy as np
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
-
 def extract_rtt_metrics(qlog_data):
     """
     Extract RTT data from qlog_data.
@@ -98,19 +97,22 @@ def main():
         if not rtts:
             print(f"Warning: No valid RTT data found for {algo}.")
             continue
-        # Convert RTTs from microseconds to milliseconds
-        rtts_ms = [r / 1000.0 for r in rtts]
+        # Convert RTTs from microseconds to milliseconds and filter out those above 300ms
+        rtts_ms = [r / 1000.0 for r in rtts if (r / 1000.0) <= 300]
+        if not rtts_ms:
+            print(f"Warning: No RTT values below 300ms found for {algo}.")
+            continue
         # Sort and compute the CDF
         rtts_sorted = np.sort(rtts_ms)
         cdf = np.arange(1, len(rtts_sorted) + 1) / len(rtts_sorted)
         plt.step(rtts_sorted, cdf, label=algo, color=custom_colors[idx])
     
-    plt.xlabel("RTT (ms)",fontsize=22)
-    plt.ylabel("CDF",fontsize=22)
+    plt.xlabel("RTT (ms)", fontsize=22)
+    plt.ylabel("CDF", fontsize=22)
     plt.grid(True)
     plt.legend(fontsize=18)
     plt.gca().tick_params(axis='both', labelsize=16)
-    plt.savefig('/tmp/multi_cdf.pdf',  bbox_inches="tight")
+    plt.savefig('/tmp/multi_cdf.pdf', bbox_inches="tight")
     plt.show()
 
 if __name__ == "__main__":
