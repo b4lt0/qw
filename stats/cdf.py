@@ -78,7 +78,7 @@ def plot_cdf(connections, labels, save_path=None):
                  color=custom_colors[i % len(custom_colors)],
                  linewidth=line_width)
     
-    plt.xlabel("RTT (ms)", fontsize=222)
+    plt.xlabel("RTT (ms)", fontsize=22)
     plt.ylabel("CDF", fontsize=22)
     plt.grid(True)
     plt.legend(fontsize=18)
