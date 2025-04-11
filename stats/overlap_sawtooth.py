@@ -129,7 +129,7 @@ def main():
     plt.gca().tick_params(axis='both', labelsize=16)
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig('sawtooth123.pdf',  bbox_inches="tight")
+    plt.savefig('/tmp/sawtooth.pdf',  bbox_inches="tight")
     plt.show()
 
 if __name__ == "__main__":
