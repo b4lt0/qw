@@ -110,13 +110,13 @@ def main():
 
     if norm_times2 and latest2_ms:
         plt.plot(norm_times2, latest2_ms, color='red', marker='s', linestyle='',
-                 label="Delay Control (80%)", linewidth=2)
+                 label="QUIC-DC(80%)", linewidth=2)
         # Plot Delay Control threshold as a horizontal dotted orange line
         plt.axhline(y=95, color='purple', linestyle='-.', label="Delay Control threshold", linewidth=lw)
 
     # Plot RTT min as a horizontal dashed red line
     if norm_times1 and min1_ms:
-        plt.axhline(y=50, color='brown', linestyle='--', label="RTT min", linewidth=3)
+        plt.axhline(y=50, color='brown', linestyle='--', label="RTT min", linewidth=lw)
     
     # Plot file 2: Delay Control (80%) using square marker and green color
 
