@@ -243,35 +243,37 @@ def main():
     ax1.axhline(y=105, color='green', linestyle='--', label="RTT Max", linewidth=lw)
     
     ax1.set_ylabel("RTT (ms)", fontsize=22)
-    ax1.set_title("RTT Over Time", fontsize=24)
-    ax1.legend(fontsize=18)
+    ax1.legend(fontsize=16)
     ax1.tick_params(axis='both', labelsize=18)
     ax1.grid(True)
 
     ##########################
     # Bottom: Congestion Control Plot (cwnd and ssthresh)
     ##########################
+    # Convert congestion metrics from bytes to kilobytes (1 KB = 1024 Bytes)
+    cwnd1_kb = [x / 1024.0 for x in cwnd1] if cwnd1 else []
+    cwnd2_kb = [x / 1024.0 for x in cwnd2] if cwnd2 else []
+    ssthresh1_kb = [x / 1024.0 for x in ssthresh_values1] if ssthresh_values1 else []
+    ssthresh2_kb = [x / 1024.0 for x in ssthresh_values2] if ssthresh_values2 else []
+
     # Westwood+ cwnd (blue solid)
-    if norm_times_cc1 and cwnd1:
-        ax2.plot(norm_times_cc1, cwnd1, color='blue', linestyle='-',
-                 label="Westwood+ cwnd", linewidth=2)
+    if norm_times_cc1 and cwnd1_kb:
+        ax2.plot(norm_times_cc1, cwnd1_kb, color='blue', linestyle='-',
+                 label="Westwood+", linewidth=2)
     # Westwood+ ssthresh (blue dashed)
-    if norm_times_ssthresh1 and ssthresh_values1:
-        ax2.plot(norm_times_ssthresh1, ssthresh_values1, color='blue', linestyle='--',
-                 label="Westwood+ ssthresh", linewidth=2)
+    if norm_times_ssthresh1 and ssthresh1_kb:
+        ax2.plot(norm_times_ssthresh1, ssthresh1_kb, color='blue', linestyle='--', linewidth=2)
     # QUIC-DC cwnd (red solid)
-    if norm_times_cc2 and cwnd2:
-        ax2.plot(norm_times_cc2, cwnd2, color='red', linestyle='-',
-                 label="QUIC-DC cwnd", linewidth=2)
+    if norm_times_cc2 and cwnd2_kb:
+        ax2.plot(norm_times_cc2, cwnd2_kb, color='red', linestyle='-',
+                 label="QUIC-DC(80%)", linewidth=2)
     # QUIC-DC ssthresh (red dashed)
-    if norm_times_ssthresh2 and ssthresh_values2:
-        ax2.plot(norm_times_ssthresh2, ssthresh_values2, color='red', linestyle='--',
-                 label="QUIC-DC ssthresh", linewidth=2)
+    if norm_times_ssthresh2 and ssthresh2_kb:
+        ax2.plot(norm_times_ssthresh2, ssthresh2_kb, color='red', linestyle='--', linewidth=2)
     
     ax2.set_xlabel("Time (s)", fontsize=22)
-    ax2.set_ylabel("cwnd / ssthresh (bytes)", fontsize=22)
-    ax2.set_title("Congestion Control Metrics", fontsize=24)
-    ax2.legend(fontsize=18)
+    ax2.set_ylabel("cwnd / ssthresh (KB)", fontsize=22)
+    ax2.legend(fontsize=16)
     ax2.tick_params(axis='both', labelsize=18)
     ax2.grid(True)
 
