@@ -243,7 +243,7 @@ def main():
     ax1.axhline(y=105, color='green', linestyle='--', label="RTT Max", linewidth=lw)
     
     ax1.set_ylabel("RTT (ms)", fontsize=22)
-    ax1.legend(fontsize=16)
+    ax1.legend(fontsize=16, loc='upper right')
     ax1.tick_params(axis='both', labelsize=18)
     ax1.grid(True)
 
@@ -273,7 +273,7 @@ def main():
     
     ax2.set_xlabel("Time (s)", fontsize=22)
     ax2.set_ylabel("cwnd / ssthresh (KB)", fontsize=22)
-    ax2.legend(fontsize=16)
+    ax2.legend(fontsize=16, loc='upper right')
     ax2.tick_params(axis='both', labelsize=18)
     ax2.grid(True)
 
