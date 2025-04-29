@@ -86,7 +86,7 @@ def plot_cdf(connections, labels, save_path=None):
     plt.gca().tick_params(axis='both', labelsize=16)
     plt.savefig('/tmp/cdf.pdf',  bbox_inches="tight")
     plt.show()
-
+    
 def main():
     parser = argparse.ArgumentParser(description='Plot CDF of RTT from 8 qlog files.')
     parser.add_argument('--qlog-paths', nargs=8, type=str, required=True,
