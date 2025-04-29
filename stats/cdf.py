@@ -82,7 +82,7 @@ def plot_cdf(connections, labels, save_path=None):
     plt.ylabel("CDF", fontsize=22)
     plt.grid(True)
     plt.legend(fontsize=18)
-    plt.xticks(np.arange(50, plt.xlim()[1] + 25, 25))
+    plt.xticks(np.arange(50, plt.xlim()[1], 25))
     plt.gca().tick_params(axis='both', labelsize=16)
     plt.savefig('/tmp/cdf.pdf',  bbox_inches="tight")
     plt.show()
